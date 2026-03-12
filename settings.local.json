@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git:*)",
+      "Bash(uv:*)",
+      "Bash(uv pip install:*)",
+      "Bash(source:*)"
+    ]
+  }
+}
+
