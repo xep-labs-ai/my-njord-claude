@@ -45,7 +45,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": ".claude/statusline.sh"
+    "command": "statusline.sh"
   }
 }
 
