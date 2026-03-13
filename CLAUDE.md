@@ -191,6 +191,57 @@ Do not invent or reference skills that do not exist in the repository.
 
 ---
 
+# Repository Structure
+
+This project uses two Git repositories.
+
+## 1. Project Repository
+
+Location:
+project root
+
+This repository contains the Django application and all project code.
+
+Typical contents:
+
+- Django apps
+- configuration
+- migrations
+- tests
+- project documentation (docs/)
+- pyproject.toml
+- CI configuration
+
+This repository represents the **actual product being developed**.
+
+---
+
+## 2. Claude Configuration Repository
+
+Location:
+.claude/
+
+The `.claude/` directory is a **separate Git repository** that contains all configuration and documentation used by Claude Code.
+
+It includes:
+
+- CLAUDE.md
+- Claude agents
+- Claude skills
+- Claude documentation (.claude/docs/)
+- Claude hooks
+- Claude settings
+
+Purpose:
+
+- manage Claude behavior independently from application code
+- version Claude workflows and development rules
+- allow reuse of Claude configuration across projects
+
+This repository acts as the **AI development environment configuration** for the project.
+
+---
+
 ## Task → Docs → Skills Routing Table
 
 Use this table to minimize context loading and improve implementation accuracy.
