@@ -96,6 +96,21 @@ Run tests with:
 
 uv run pytest
 
+## MCP Servers
+
+This project uses the following MCP integrations:
+
+- Filesystem MCP
+- Context7 MCP
+- Postgres MCP
+
+Rules:
+
+- Prefer Filesystem MCP for repository exploration
+- Prefer Context7 MCP for library documentation
+- Prefer Postgres MCP for schema inspection
+- Database access should be read-only unless explicitly requested
+
 
 ## Test Execution Strategy
 
@@ -116,6 +131,24 @@ Run a single test:
 
 uv run pytest -k test_invoice_generation_basic
 
+## Pre-commit
+
+This repository uses `pre-commit` as a required local quality gate.
+
+Configured hooks currently include:
+
+- `ruff --fix`
+- `ruff-format`
+- `mypy --config-file=pyproject.toml`
+
+Claude should treat these checks as part of the normal implementation workflow for changed Python code.
+
+Recommended commands:
+
+```bash
+uv run pre-commit run --files path/to/changed_file.py
+uv run pre-commit run --all-files
+```
 
 
 # Linting

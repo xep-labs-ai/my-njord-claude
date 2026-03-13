@@ -43,6 +43,72 @@ Never introduce complexity unless it clearly improves correctness or safety.
 
 ---
 
+## Static Analysis and Developer Tooling
+
+This project uses the following development and quality tools:
+
+- ruff
+- mypy
+- django-stubs
+- djangorestframework-stubs
+- pytest
+- pytest-django
+- pytest-cov
+- django-extensions
+- pre-commit
+- django-doctor
+
+Claude must treat these tools as active project conventions, not optional dependencies.
+
+### Rules
+
+- All new Python code must be compatible with the configured `mypy` rules.
+- All new Django code must be written with `django-stubs` in mind.
+- All new DRF code must be written with `djangorestframework-stubs` in mind.
+- New functions and methods must include explicit type annotations.
+- Avoid `Any` unless there is a clear and justified reason.
+- QuerySets should use typed generics where practical.
+- Services, selectors, and serializers should be written in a type-check-friendly way.
+- Code must be compatible with `ruff check`.
+- Code formatting should remain compatible with `ruff format`.
+- Tests must be written and run with `pytest` and `pytest-django`.
+- Use `pytest-cov` when validating meaningful domain logic or billing behavior.
+- `django-extensions` may be used for development and repository exploration, but not as a substitute for clear application architecture.
+- `django-doctor` should be treated as an additional quality signal for Django-specific issues, not as the primary source of truth.
+- `pre-commit` hooks should be kept passing for all committed changes.
+
+### Implementation Expectations for Claude
+
+When generating code, Claude should:
+
+- prefer typed service functions
+- prefer typed selectors
+- prefer typed QuerySets
+- avoid untyped helper functions
+- avoid introducing patterns that fight `mypy` or the Django/DRF stubs
+- generate tests that fit `pytest` and `pytest-django`
+- keep code simple enough to pass linting and type checking without unnecessary ignores
+
+### Example Expectations
+
+Preferred:
+
+    def create_invoice(...) -> Invoice:
+        ...
+
+    def get_billable_resources(...) -> QuerySet[ResourceModel]:
+        ...
+
+Avoid:
+
+    def create_invoice(...):
+        ...
+
+    def get_billable_resources(...):
+        ...
+
+---
+
 # Django Layering Rules
 
 Responsibilities must remain clearly separated.
