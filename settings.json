@@ -40,6 +40,15 @@
             "command": ".claude/hooks/log-tool-usage.sh"
           }
         ]
+      },
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/log-tool-usage-file.sh"
+          }
+        ]
       }
     ]
   },
