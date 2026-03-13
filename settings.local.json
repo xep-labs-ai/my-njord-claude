@@ -6,6 +6,10 @@
       "Bash(uv pip install:*)",
       "Bash(source:*)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "filesystem",
+    "context7",
+    "postgres"
+  ]
 }
-
