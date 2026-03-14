@@ -13,7 +13,7 @@ Questions are grouped by priority: **blockers first**, then important-but-not-bl
 
 ### RQ1 — ResourceModel: abstract vs. concrete Django model
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `ResourceModel` is described as a "base model for billable resources" but it is never stated whether it is a Django abstract model, a concrete model with multi-table inheritance (MTI), or something else.
@@ -27,13 +27,13 @@ MTI has well-known performance issues and would change how queries work.
 
 **Proposal:** Option (a). Abstract model avoids MTI complexity, is consistent with the `resource_type + resource_id` pattern already in the PRPs, and keeps each resource app independent.
 
-**Answer:**
+**Answer:** option a
 
 ---
 
 ### RQ2 — Resource lifecycle: per-day status resolution vs. point-in-time
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 The billing engine evaluates resources per day. But `status` is a single field on the resource model — not date-tracked. This means:
@@ -47,13 +47,54 @@ The billing engine evaluates resources per day. But `status` is a single field o
 
 **Proposal:** Option (a) for v1, with a clear note in `BILLING.md` that per-day lifecycle resolution is a known limitation. This avoids model complexity while being explicit about the constraint.
 
-**Answer:**
+**Answer:** The answer is the following block:
+```
+Choose option (b), but define it with explicit lifecycle window fields:
+
+- active_from
+- active_to (nullable)
+
+Reasoning:
+
+- The billing engine already evaluates resources per day, so billability should also be resolved per day.
+- A single current status field is not sufficient for historical billing.
+- Point-in-time billing based only on current status would make past invoices inaccurate and harder to audit.
+- A simple active window gives the minimum structure needed for deterministic billing without introducing full lifecycle-event modeling.
+
+Definition:
+
+- `active_from` is the first day the resource is billable.
+- `active_to` is the last day the resource is billable.
+- `active_to = null` means the billing window is open-ended.
+- `active_to` is inclusive when present.
+
+Recommended per-day billability rule:
+
+A resource is billable for a given day only if:
+
+- it derives from `ResourceModel`
+- `billing_account` is not null
+- `active_from <= day`
+- (`active_to` is null OR `day <= active_to`)
+- it is included in the invoice selection
+
+Status semantics:
+
+- `status` represents the resource's current lifecycle state
+- `ACTIVE` means the resource is currently active
+- `RETIRED` means the resource is no longer active for future billing
+- if `status == RETIRED`, `active_to` should be set to the final billable day
+
+Decision:
+
+Use `active_from` and nullable `active_to` in v1, and resolve billability per day from that window. Do not use a fake far-future default such as 2099-12-31; use null to represent an open-ended billing period.
+```
 
 ---
 
 ### RQ3 — `force=true` without autofill: exact behavior
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 The billing engine supports `force=true` (generate invoice even with missing data) and `autofill=true` (carry forward last known value). But what happens when `force=true` AND `autofill=false` and a resource has missing days?
@@ -66,13 +107,13 @@ The billing engine supports `force=true` (generate invoice even with missing dat
 
 **Proposal:** Option (a). Skipping is the safest default — it avoids billing zero (which could look like a legitimate zero-cost invoice line) and avoids silent data loss. The skipped resources should be reported in the invoice generation response.
 
-**Answer:**
+**Answer:** option b
 
 ---
 
 ### RQ4 — `pricing_dimension` allowed values
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `ResourcePrice.pricing_dimension` appears in the model fields but its allowed values are never defined. The billing engine needs to match a resource's billable units to the correct `ResourcePrice` row using this field.
@@ -88,7 +129,21 @@ The billing engine supports `force=true` (generate invoice even with missing dat
 - StorageHotel: `"storage"` (one dimension)
 - VirtualMachine: `"cpu"`, `"ram"`, `"disk"` (three dimensions, short names, consistent with VM PRP field names `cpu_count`, `ram_gb`, `disk_gb`)
 
-**Answer:**
+**Answer:** The current block
+
+```
+Define `pricing_dimension` as a controlled, explicit identifier that matches the normalized billable quantity used by the billing engine.
+
+Recommended values:
+
+StorageHotel
+- `quota_tb`
+
+VirtualMachine
+- `cpu_count`
+- `ram_gb`
+- `disk_gb`
+```
 
 ---
 
@@ -106,7 +161,28 @@ The billing engine supports `force=true` (generate invoice even with missing dat
 
 **Proposal:** Option (a). UUIDs are the cleanest solution — they eliminate type ambiguity everywhere (invoice references, API calls, audit logs). The cost is slightly less readable IDs.
 
-**Answer:**
+**Answer:** the following block:
+
+```
+Choose option (b) with the following suggestions. 
+
+Explicit resource selection must use `(resource_type, resource_id)` pairs rather than a plain list of IDs.
+
+Reasoning:
+
+- Resource selection is polymorphic, so the input must identify both the resource model and the resource ID.
+- UUIDs would reduce accidental ID collisions, but they would not remove the need to know the resource type for billing, validation, and price resolution.
+- This approach is already consistent with the existing `resource_type + resource_id` pattern used by `InvoiceLine` and `InvoiceDailyCost`.
+- It keeps the selection contract explicit, deterministic, and easy to validate without requiring a project-wide PK strategy change.
+
+Recommended input shape:
+
+`explicit_resources = [{"resource_type": "storage_hotel", "resource_id": 101}, {"resource_type": "virtual_machine", "resource_id": 205}]`
+
+Decision:
+
+Use typed resource references for explicit selection in v1.
+```
 
 ---
 
@@ -123,7 +199,7 @@ This affects database constraints (unique index scope) and sequence generation i
 
 **Proposal:** Option (a). A global monthly counter is simpler to implement (one sequence or one DB row), easier to audit (no duplicate numbers across accounts), and more typical for invoicing systems.
 
-**Answer:**
+**Answer:** Option a but instead of  `INV-YYYY-mm-NNNN` do `INV-YYYY-mm-NNNNN` To allow more than 9999 invoices per month if needed.
 
 ---
 
@@ -139,7 +215,7 @@ This affects database constraints (unique index scope) and sequence generation i
 
 **Proposal:** Option (a). Round at line level. This is the most common invoicing convention, makes each line independently auditable, and the penny discrepancy risk is acceptable with proper documentation. The `InvoiceDailyCost` rows always remain at full precision.
 
-**Answer:**
+**Answer:** b is the answer
 
 ---
 
@@ -157,7 +233,7 @@ StorageHotel `quota_unit` can be `KB` or `KIB`. The billing unit is `TB`. The ex
 
 **Proposal:** Option (a). Decimal TB is the industry standard for storage billing (consistent with how vendors like AWS price storage). Document the exact constant: `KB_TO_TB = Decimal("1e-9")`, `KIB_TO_TB = Decimal("1024") / Decimal("1e12")`.
 
-**Answer:**
+**Answer:** Option a
 
 ---
 
@@ -177,7 +253,7 @@ These contradict each other.
 
 **Proposal:** Whichever is correct, the docs must agree. If the intent is (a), say so explicitly in both places.
 
-**Answer:**
+**Answer:** c LDAP is out of the scope for now, remove it from the stack list in `CLAUDE.md`.
 
 ---
 
@@ -196,7 +272,7 @@ This means Claude has no documented guidance on where to put files.
 
 **Proposal:** Option (a). Populate with the implied structure: `apps/billing/`, `apps/ingest/`, per-app layout for `models.py`, `services/`, `selectors/`, `serializers.py`, `views.py`, `tests/`.
 
-**Answer:**
+**Answer:** I have just already removed. It is all inside ARCHITECTURE.md. Remove it from documentation if present
 
 ---
 
@@ -215,7 +291,32 @@ This means Claude has no documented guidance on where to put files.
 - Rename `total_billed_amount` → `total_billed_quantity` (stores aggregate resource usage, not money)
 - Keep `total_cost` as the money field (Decimal, NOK)
 
-**Answer:**
+**Answer:** the following block:
+
+```
+Partially accept the proposal.
+
+`total_billed_amount` should be removed, because it is ambiguous and overlaps with `total_cost`.
+
+However, it should not be replaced with a single scalar `total_billed_quantity` field. That would still assume one aggregate quantity per resource, which does not fit multi-dimension billing for resources like VirtualMachine.
+
+Decision:
+
+- keep `total_cost` as the monetary field
+- remove `total_billed_amount`
+- store aggregate billed quantities in `InvoiceLine.metadata`, for example under `total_quantity_by_dimension`
+
+This keeps `InvoiceLine` valid for both single-dimension and multi-dimension resources.
+
+maybe a valid example for VirtualMachine line metadata should be something like this:
+```
+metadata.total_quantity_by_dimension = {
+  "cpu_count_days": "248",
+  "ram_gb_days": "992",
+  "disk_gb_days": "15500"
+}
+```
+```
 
 ---
 
@@ -233,7 +334,7 @@ This means Claude has no documented guidance on where to put files.
 
 **Proposal:** Option (a). Remove it. `InvoiceDailyCost` is the source of truth; a summary field at the line level adds confusion without value.
 
-**Answer:**
+**Answer:** option a
 
 ---
 
@@ -247,7 +348,47 @@ No documented uniqueness constraint prevents generating two invoices for the sam
 **Proposal:**
 Add a unique constraint on `Invoice`: `(billing_account, period_start, period_end)`. Allow override only via explicit `force=true` on re-generation, which would replace the existing draft.
 
-**Answer:**
+**Answer:** the following block:
+
+```
+Accept the intent, but refine the constraint.
+
+A duplicate-prevention rule is required, but invoice uniqueness cannot be based only on `(billing_account, period_start, period_end)` because invoice selection scope is part of the logical invoice identity.
+
+Decision:
+
+- There must be at most one draft invoice for the same billing account, billing period, and billing selection.
+- Billing selection includes:
+  - `selection_scope`
+  - selected resource types
+  - selected explicit resources
+- If a matching draft invoice already exists:
+  - without `force=true`, invoice generation fails
+  - with `force=true`, the existing draft is replaced atomically
+- If a matching finalized invoice already exists, invoice generation must fail. Finalized invoices are immutable and must not be replaced.
+
+Reasoning:
+
+- This prevents accidental duplicate invoices
+- It keeps invoice generation deterministic
+- It respects the fact that different billing selections may produce different valid invoices for the same account and period
+- It preserves the immutability of finalized invoices
+
+Example, this is allowed:
+```
+Invoice A:
+billing_account = X
+period = Jan 2026
+selection_scope = resource_types
+selected_resource_types = ["storage_hotel"]
+
+Invoice B:
+billing_account = X
+period = Jan 2026
+selection_scope = resource_types
+selected_resource_types = ["virtual_machine"]
+```
+```
 
 ---
 
@@ -266,7 +407,32 @@ Both `StorageHotel` and `VirtualMachine` have a `deleted_at` field implying soft
 - A resource with `deleted_at IS NOT NULL` is never billable
 - Default queryset excludes soft-deleted resources (custom manager)
 
-**Answer:**
+**Answer:** this block:
+
+```
+Partially accept the proposal, but clarify the semantics.
+
+Decision:
+
+- `deleted_at` represents soft deletion at the application level
+- if `deleted_at` is set, `status` must be `RETIRED`
+- soft-deleted resources must be excluded from default querysets
+- soft-deleted resources must not be billable for days after their billing end
+- billability for historical days must still be resolved from `active_from` / `active_to`, not from `deleted_at` alone
+
+Reasoning:
+
+- soft deletion and billing lifecycle are related, but not identical
+- a resource may be soft-deleted after its final billable day, and historical invoices must still remain correct
+- using `deleted_at is not null` as the sole billability rule would make past billing inaccurate
+- default querysets should hide soft-deleted resources from normal application use, while audit and billing workflows must still be able to access them
+
+Recommended invariants:
+
+- if `deleted_at` is not null, `status` must be `RETIRED`
+- if `deleted_at` is not null, `active_to` must be set
+- `active_to` should be on or before the calendar date of `deleted_at`
+```
 
 ---
 
