@@ -450,7 +450,80 @@ Add an invoice API section to either `001-billing-engine.prp.md` or a new `003-i
 - `GET  /api/v1/invoices/`
 - `GET  /api/v1/invoices/{id}/`
 
-**Answer:**
+**Answer:** The following block:
+
+```
+Create a new dedicated PRP:
+
+`docs/PRP/003-invoice-api.prp.md`
+Decision
+Invoice lifecycle endpoints should be specified in a dedicated PRP, not embedded into the billing-engine PRP.
+
+Recommended file:
+
+- `docs/PRP/003-invoice-api.prp.md`
+Reasoning
+- `001-billing-engine.prp.md` should remain focused on billing rules, orchestration, and snapshot behavior.
+- The invoice API is a separate contract: request shape, validation rules, endpoint semantics, lifecycle transitions, and response structure.
+- A dedicated PRP keeps the architecture clearer and makes future API changes easier to review.
+- This also matches the existing PRP structure, where concerns are separated into focused documents.
+What 003-invoice-api.prp.md should define
+
+At minimum:
+
+- endpoint list
+- request and response shapes
+- selection input contract
+- validation failures
+- draft vs finalized behavior
+- duplicate-prevention behavior
+- `force=true` regeneration rules
+- invoice retrieval shape
+- line and daily-cost exposure rules
+- status transition rules
+Recommended initial endpoints
+POST   /api/v1/invoices/generate
+GET    /api/v1/invoices/
+GET    /api/v1/invoices/{id}/
+POST   /api/v1/invoices/{id}/finalize
+
+Optional later:
+
+GET    /api/v1/invoices/{id}/lines
+GET    /api/v1/invoices/{id}/daily-costs
+POST   /api/v1/invoices/{id}/recalculate
+DELETE /api/v1/invoices/{id}
+
+But for v1, the first four are enough.
+
+Suggested PRP note
+`003-invoice-api.prp.md` defines the HTTP contract for invoice generation, retrieval, and finalization.
+
+`001-billing-engine.prp.md` remains the source of truth for billing calculation rules and snapshot persistence behavior.
+Best answer to send
+Accept the proposal, but implement it as a dedicated PRP.
+
+Decision:
+
+Create a new PRP:
+
+`docs/PRP/003-invoice-api.prp.md`
+
+This document should define the invoice lifecycle HTTP contract, including:
+
+- `POST /api/v1/invoices/generate`
+- `POST /api/v1/invoices/{id}/finalize`
+- `GET  /api/v1/invoices/`
+- `GET  /api/v1/invoices/{id}/`
+
+Reasoning:
+
+- the billing-engine PRP should remain focused on billing rules and invoice-generation behavior
+- the invoice API is a separate contract and deserves its own specification
+- a dedicated PRP makes endpoint semantics, validation, lifecycle transitions, and response models easier to review and evolve
+
+`001-billing-engine.prp.md` should remain the source of truth for billing logic, while `003-invoice-api.prp.md` should become the source of truth for the invoice HTTP interface.
+```
 
 ---
 
@@ -467,7 +540,7 @@ Q1 asks about VM billing strategy and is marked HELPME. But Q6 answers "one row 
 
 **Proposal:** Update Q1 status to ANSWERED with summary: "VM v1 billing is per-dimension (cpu, ram, disk), with 3 InvoiceDailyCost rows per VM per day. Discounts apply per dimension independently."
 
-**Answer:**
+**Answer:** accept proposal
 
 ---
 
@@ -478,7 +551,7 @@ Q1 asks about VM billing strategy and is marked HELPME. But Q6 answers "one row 
 **Problem:**
 Q3 has status "HELPME" but the answer `(c) Formatted string with pattern INV-YYYY-mm-NNNN` is already written in the document.
 
-**Proposal:** Change Q3 status to ANSWERED.
+**Proposal:** Change Q3 status to ANSWERED and modify it to INV-YYYY-mm-NNNNN to allow more than 9999 invoices per month if needed.
 
 **Answer:**
 
@@ -493,7 +566,7 @@ Line reads `**Status:** ANSWERED|` — stray pipe character.
 
 **Proposal:** Remove the `|`.
 
-**Answer:**
+**Answer:** yes pls
 
 ---
 
@@ -506,7 +579,7 @@ Both resource PRPs list endpoints without the required `/api/v1/` prefix, contra
 
 **Proposal:** Prefix all endpoint listings with `/api/v1/` in both resource PRPs.
 
-**Answer:**
+**Answer:** Accept proposal
 
 ---
 
@@ -517,9 +590,9 @@ Both resource PRPs list endpoints without the required `/api/v1/` prefix, contra
 **Problem:**
 `DEVELOPER_TOOLING_AND_ENVIRONMENT.md` says "Type checking is optional but available." `CODING_RULES.md` says all new code must be compatible with mypy and type annotations are required. mypy is also in pre-commit hooks.
 
-**Proposal:** Update `DEVELOPER_TOOLING_AND_ENVIRONMENT.md` to say type checking is mandatory.
+**Proposal:** Update `DEVELOPER_TOOLING_AND_ENVIRONMENT.md` to say type checking is mandatory
 
-**Answer:**
+**Answer:** Accept proposal
 
 ---
 
@@ -535,7 +608,7 @@ Both resource PRPs list endpoints without the required `/api/v1/` prefix, contra
 - (b) Document it as a manual-only tool
 - (c) Remove it entirely
 
-**Answer:**
+**Answer:** add to pre-commit
 
 ---
 
@@ -548,7 +621,7 @@ Both resource PRPs list endpoints without the required `/api/v1/` prefix, contra
 
 **Proposal:** Change to `apps/billing/tests/test_api_invoice_generation.py`.
 
-**Answer:**
+**Answer:** Accept proposal
 
 ---
 
@@ -561,6 +634,6 @@ The entire `django-testing-pattern/SKILL.md` is wrapped in a ` ```md ` / ` ``` `
 
 **Proposal:** Remove the outer code fence wrapping.
 
-**Answer:**
+**Answer:** yes pls
 
 ---
