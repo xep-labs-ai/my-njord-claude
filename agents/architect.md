@@ -70,7 +70,6 @@ When relevant, review these project documents first:
 - `.claude/docs/API.md`
 - `.claude/docs/BILLING.md`
 - `.claude/docs/CODING_RULES.md`
-- `.claude/docs/STRUCTURE.md`
 - `.claude/docs/TESTING.md`
 - `.claude/docs/TESTING_TEMPLATES.md`
 - `docs/PRP/000-system-overview.prp.md`

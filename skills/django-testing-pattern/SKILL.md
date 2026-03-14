@@ -82,7 +82,7 @@ Before writing tests, read only the smallest relevant set of docs.
 - `.claude/docs/BILLING.md` for invoice generation, pricing, snapshots, immutability, missing data, autofill, and billing invariants
 - `.claude/docs/API.md` for endpoint tests
 - `.claude/docs/PROJECT.md` for domain understanding
-- `.claude/docs/STRUCTURE.md` for file placement
+- `.claude/docs/ARCHITECTURE.md` for module organization and file placement
 - `.claude/docs/CODING_RULES.md` when architectural constraints may affect test design
 
 Do not load unnecessary docs.
@@ -173,7 +173,7 @@ Do not test internal helper functions directly unless they contain meaningful bu
 
 ### 4. Place the test in the correct location
 
-Follow `.claude/docs/STRUCTURE.md`.
+Follow `.claude/docs/ARCHITECTURE.md` for file placement within app structure.
 
 Typical patterns:
 

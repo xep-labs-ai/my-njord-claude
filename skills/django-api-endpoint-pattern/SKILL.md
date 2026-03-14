@@ -67,7 +67,7 @@ The current Claude docs most relevant to endpoint work are:
 - `.claude/docs/BILLING.md`
 - `.claude/docs/CODING_RULES.md`
 - `.claude/docs/TESTING.md`
-- `.claude/docs/STRUCTURE.md`
+- `.claude/docs/ARCHITECTURE.md`
 
 ---
 

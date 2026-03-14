@@ -13,7 +13,7 @@ Questions are grouped by priority: **model/schema blockers first**, then billing
 
 ### AQ1 — `Invoice.total_cost` vs `Invoice.total_amount` field name conflict
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 Two different field names are used for the invoice-level monetary total across docs:
@@ -36,7 +36,7 @@ Two different field names are used for the invoice-level monetary total across d
 
 ### AQ3 — `BillingAccount` model fields never defined
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `BillingAccount` is referenced everywhere as a core entity but no PRP defines its fields. Only its conceptual role is described: "represents the billing entity" (org, department, project) and "uses exactly one PriceList."
@@ -168,7 +168,7 @@ without carrying the UiO accounting fields.
 
 ### AQ4 — `PriceList` model fields never defined
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `PriceList` is referenced as the pricing container and `ResourcePrice` has a FK to it, but PriceList's own fields are never listed. It is unclear whether it has lifecycle status, effective dates, or is always considered active.
@@ -213,7 +213,7 @@ Reasoning:
 
 ### AQ6 — `InvoiceDailyCost` unique constraint broken for multi-dimension resources
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 The current unique constraint on `InvoiceDailyCost` is `(invoice_id, resource_type, resource_id, date)`. VirtualMachine produces 3 rows per resource per day (cpu_count, ram_gb, disk_gb). This violates the constraint — all 3 rows have the same `(invoice_id, resource_type, resource_id, date)`.
@@ -232,7 +232,7 @@ This directly contradicts the Q6 decision: "one row per dimension per day."
 
 ### AQ16 — `pricing_dimension` not a field on `InvoiceDailyCost`
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 Directly related to AQ6. The `pricing_dimension` field is defined on `ResourcePrice` but is absent from `InvoiceDailyCost`. Without it as a first-class column:
@@ -253,7 +253,7 @@ Add `pricing_dimension` (CharField) to `InvoiceDailyCost`. For StorageHotel rows
 
 ### AQ2 — VM: `ram_mb` stored, `ram_gb` billed — conversion formula undefined
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 VirtualMachineDailyUsage stores RAM as `ram_mb`. The billing dimension is `ram_gb`. The conversion formula is never documented.
@@ -278,7 +278,7 @@ Add a "Unit Conversion Rules" section to `virtual-machine.prp.md`:
 
 ### AQ15 — `ResourcePrice.effective_to`: inclusive or exclusive?
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `effective_to` on `ResourcePrice` is used in price resolution logic (`day <= effective_to`) which implies it is **inclusive**. But this is never explicitly stated in any pricing section. An implementer creating price rows needs to know: does `effective_to = 2026-01-31` mean the price is valid ON January 31, or only UNTIL January 31?
@@ -297,7 +297,7 @@ Add to `001-billing-engine.prp.md` ResourcePrice section:
 
 ### AQ17 — InvoiceLine aggregation for multi-dimension VMs: 1 line or 3 lines per VM?
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `InvoiceLine` is described as representing "one resource within an invoice." For VirtualMachine with 3 billing dimensions, it is unclear whether the invoice gets:
@@ -322,7 +322,7 @@ This affects the model, the billing engine aggregation logic, and the API respon
 
 ### AQ5 — VM metadata keys inconsistent across documents
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 Two documents describe VM `InvoiceLine.metadata` keys differently:
@@ -353,7 +353,7 @@ Update `virtual-machine.prp.md` to match.
 
 ### AQ7 — `STRUCTURE.md` deleted but still referenced in several files
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 RQ10 was answered: "I have just already removed. It is all inside ARCHITECTURE.md." But `STRUCTURE.md` is still referenced in:
@@ -375,7 +375,7 @@ Remove or replace all `STRUCTURE.md` references in those files. Where file place
 
 ### AQ8 — Duplicate prevention: no concurrency strategy defined
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 The duplicate prevention key includes JSON fields (`selection_scope`, `selected_resource_types`, `explicit_resources`). PostgreSQL cannot enforce a unique constraint across JSON subfields natively. If two requests arrive simultaneously, both could pass the service-layer check before either commits.
@@ -393,7 +393,7 @@ The duplicate prevention key includes JSON fields (`selection_scope`, `selected_
 
 ### AQ9 — `billing_account` in API request: integer PK or external identifier?
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `003-invoice-api.prp.md` shows `"billing_account": "<id or identifier>"`. It is unclear whether the caller passes the database PK, a UUID, or a human-readable identifier like an account code.
@@ -423,7 +423,7 @@ Decision:
 
 ### AQ10 — Resource CRUD and ingestion endpoints: request/response shapes undefined
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 Both resource PRPs list endpoints (`POST /api/v1/storage-hotels/`, `PATCH /api/v1/storage-hotels/{id}/`, `POST /api/v1/storage-hotels/{id}/quota`, etc.) but define no request or response shapes, validation rules, or behavior. For ingestion specifically:
@@ -478,7 +478,7 @@ The resource-specific PRPs should continue to define domain models and billing s
 
 ### AQ11 — `autofill` vs `autofill_missing_days` naming inconsistency
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `003-invoice-api.prp.md` uses `"autofill": true` in the request body example, but `BILLING.md`, `001-billing-engine.prp.md`, and the invoice metadata response all use `autofill_missing_days`.
@@ -492,7 +492,7 @@ Use `autofill_missing_days` everywhere, including in the API request body. Updat
 
 ### AQ12 — Draft replacement with `force=true`: delete or update in place?
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 Multiple docs say a matching draft is "replaced atomically" when `force=true`, but the replacement mechanics are never defined:
@@ -508,7 +508,7 @@ Multiple docs say a matching draft is "replaced atomically" when `force=true`, b
 
 ### AQ13 — `InvoiceLine.billing_unit` for multi-dimension VMs
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `InvoiceLine` has a `billing_unit` field. For StorageHotel this is clearly `"TB"`. For VirtualMachine with 3 dimensions (cpu_count, ram_gb, disk_gb), there is no single billing unit that applies to the whole line.
@@ -567,7 +567,7 @@ InvoiceLine.metadata = {
 
 ### AQ14 — `BILLING.md` Example 4 uses old plain-ID format
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `BILLING.md` Example 4 (explicit resource selection) still shows:
@@ -591,7 +591,7 @@ explicit_resources: [
 
 ### AQ18 — Invoice number: assigned at draft creation or finalization?
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 Invoice numbers follow `INV-YYYY-mm-NNNNN`. API response examples show `invoice_number` on draft invoices, implying it is assigned at creation. But this is never explicitly stated. Consequences:

@@ -12,7 +12,6 @@ Describe the high-level architecture of the Django Invoice API and how the main 
 ## Do not read this doc when
 - implementing API endpoints (see API.md)
 - writing tests (see TESTING.md)
-- deciding repository file placement (see STRUCTURE.md)
 - implementing financial rules (see BILLING.md)
 
 ## Purpose
@@ -27,7 +26,6 @@ Related documents:
 - `.claude/docs/PROJECT.md`
 - `.claude/docs/API.md`
 - `.claude/docs/BILLING.md`
-- `.claude/docs/STRUCTURE.md`
 
 ---
 

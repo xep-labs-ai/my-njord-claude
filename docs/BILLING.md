@@ -428,8 +428,8 @@ Use `Decimal` internally.
 Rounding happens at the invoice level only:
 
 - `InvoiceDailyCost` rows remain at full `Decimal` precision
-- `InvoiceLine.total_cost` remains at full `Decimal` precision
-- `Invoice.total_amount` is rounded to 2 decimal places NOK
+- `InvoiceLine.total_cost` remains at full `Decimal` precision (full-precision per-resource cost)
+- `Invoice.total_amount` is rounded to 2 decimal places NOK (customer-visible total)
 
 Suggested rounding method:
 
@@ -537,7 +537,7 @@ This includes both types and excludes all others.
 
 - billing account: `BA-001`
 - selection scope: `explicit_resources`
-- resource IDs: `[101, 205, 333]`
+- explicit_resources: `[{"resource_type": "storage_hotel", "resource_id": 101}, {"resource_type": "virtual_machine", "resource_id": 205}]`
 
 Only those resources are billed, regardless of other billable resources on the account.
 
@@ -583,6 +583,6 @@ This document does not define:
 Those belong in:
 
 - `.claude/docs/API.md`
-- `.claude/docs/STRUCTURE.md`
+- `.claude/docs/ARCHITECTURE.md`
 - resource PRPs
 - resource-specific implementation docs

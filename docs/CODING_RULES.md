@@ -22,7 +22,6 @@ This document contains implementation constraints, not architectural explanation
 - Implementing REST endpoints (see API.md)
 - Writing tests (see TESTING.md)
 - Understanding billing rules (see BILLING.md)
-- Understanding repository structure (see STRUCTURE.md)
 
 ---
 
