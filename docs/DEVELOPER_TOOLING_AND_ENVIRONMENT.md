@@ -140,6 +140,7 @@ Configured hooks currently include:
 - `ruff --fix`
 - `ruff-format`
 - `mypy --config-file=pyproject.toml`
+- `django-doctor`
 
 Claude should treat these checks as part of the normal implementation workflow for changed Python code.
 
@@ -149,6 +150,18 @@ Recommended commands:
 uv run pre-commit run --files path/to/changed_file.py
 uv run pre-commit run --all-files
 ```
+
+### django-doctor
+
+`django-doctor` is a Django-specific linting tool that checks for common Django anti-patterns and configuration errors.
+
+Run manually:
+
+```bash
+uv run django-doctor check
+```
+
+It is also integrated into the pre-commit pipeline.
 
 
 # Linting
@@ -166,12 +179,13 @@ ruff check .
 
 # Type Checking
 
-Type checking is optional but available.
+Type checking is **mandatory**. All new code must pass mypy.
 
 Tool:
 
 mypy
 
+mypy is enforced by pre-commit hooks.
 
 Run type checking:
 

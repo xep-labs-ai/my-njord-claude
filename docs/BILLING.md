@@ -135,6 +135,15 @@ Bills only the explicitly selected resources.
 
 This must support selecting one or more concrete resources, potentially across resource types, as long as all selected resources belong to the same billing account.
 
+Input format uses `(resource_type, resource_id)` pairs:
+
+```json
+explicit_resources = [
+  {"resource_type": "storage_hotel", "resource_id": 101},
+  {"resource_type": "virtual_machine", "resource_id": 205}
+]
+```
+
 ### Validation rules
 
 Invoice generation must fail if:
@@ -155,20 +164,19 @@ A resource is billable for a given day only if:
 
 - it is a concrete resource derived from `ResourceModel`
 - `billing_account_id` is not null
-- `status == ACTIVE`
+- `active_from <= day`
+- `active_to IS NULL OR day <= active_to`
 - it is included by the invoice selection
-- it is valid for billing on that billed day
 
 Resources that are:
 
 - unassigned
-- retired
+- outside their active billing window
 - excluded by selection
-- deleted or otherwise not billable on the billed day
 
 must not contribute cost.
 
-If the system later supports effective start/end lifecycle dates, billability must be resolved per day.
+Billability is resolved **per day** using the `active_from` and `active_to` fields from ResourceModel. The `status` field represents the resource's current lifecycle state but does not determine historical billability.
 
 ---
 
@@ -241,11 +249,11 @@ If a resource has multiple billing dimensions, autofill must use the last known 
 
 ### Force mode
 
-If `force=true`:
+If `force=true` and `autofill_missing_days=false`:
 
-- allow generation to proceed when allowed by the implementation policy
-- mark invoice metadata as incomplete
-- record missing-day details in metadata
+- resources with missing days are billed at **zero** for those missing days
+- the invoice line is included with zero cost
+- missing days must be reported in the invoice generation response
 
 ### Combined flags
 
@@ -417,13 +425,13 @@ This daily snapshot is the source of truth for later debugging and auditing.
 
 Use `Decimal` internally.
 
-Recommended approach:
+Rounding happens at the invoice level only:
 
-- avoid unnecessary intermediate rounding
-- round customer-visible totals to 2 decimals NOK
-- use one project-wide rounding rule
+- `InvoiceDailyCost` rows remain at full `Decimal` precision
+- `InvoiceLine.total_cost` remains at full `Decimal` precision
+- `Invoice.total_amount` is rounded to 2 decimal places NOK
 
-Suggested default:
+Suggested rounding method:
 
 - `ROUND_HALF_UP`
 
@@ -453,6 +461,16 @@ The rounding policy must be consistent across resource types.
 - autofill takes priority first
 - autofill fills what it can
 - if no prior valid billing state exists, resource still fails unless force-policy explicitly allows partial continuation
+
+---
+
+## Duplicate Invoice Prevention
+
+There must be at most one draft invoice per `(billing_account, period_start, period_end, selection_scope, selected_resource_types, explicit_resources)`.
+
+A matching finalized invoice must block regeneration entirely (finalized invoices are immutable).
+
+A matching draft is replaced atomically when `force=true`.
 
 ---
 

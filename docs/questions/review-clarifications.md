@@ -149,7 +149,7 @@ VirtualMachine
 
 ### RQ5 — Explicit resource selection: ID disambiguation
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `BILLING.md` shows that invoice generation can target explicit resource IDs: `resource_ids: [101, 205, 333]`. But IDs 101, 205, 333 could belong to a StorageHotel or a VirtualMachine — there is no way to know which table to look in without a type discriminator.
@@ -188,7 +188,7 @@ Use typed resource references for explicit selection in v1.
 
 ### RQ6 — Invoice number sequence scope (Q8 carry-forward)
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 Invoice number format is `INV-YYYY-mm-NNNN`. Is the `NNNN` counter:
@@ -205,7 +205,7 @@ This affects database constraints (unique index scope) and sequence generation i
 
 ### RQ7 — Rounding sequence: line-level vs. invoice-level
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `BILLING.md` says "round customer-visible totals to 2 decimals NOK" but does not define the sequence. Two approaches exist:
@@ -221,7 +221,7 @@ This affects database constraints (unique index scope) and sequence generation i
 
 ### RQ8 — Storage unit conversion: KB/KIB to billing unit
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 StorageHotel `quota_unit` can be `KB` or `KIB`. The billing unit is `TB`. The exact conversion formulas are never documented, and it is unclear whether the billing unit `TB` means decimal terabytes (10^12 bytes) or binary tebibytes (2^40 bytes).
@@ -239,7 +239,7 @@ StorageHotel `quota_unit` can be `KB` or `KIB`. The billing unit is `TB`. The ex
 
 ### RQ9 — LDAP authentication: in scope for v1 or not?
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `000-system-overview.prp.md` lists "authentication / authorization" as a **non-goal** for v1.
@@ -259,7 +259,7 @@ These contradict each other.
 
 ### RQ10 — STRUCTURE.md is nearly empty
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `.claude/docs/STRUCTURE.md` is referenced in multiple routing tables and skill files as the authority on file placement, but it contains only a routing header and no actual rules.
@@ -282,7 +282,7 @@ This means Claude has no documented guidance on where to put files.
 
 ### RQ11 — `InvoiceLine` fields: `total_billed_amount` vs `total_cost`
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `InvoiceLine` has two fields that appear synonymous: `total_billed_amount` and `total_cost`. If they mean the same thing, one should be removed. If they are different, the distinction must be documented.
@@ -322,7 +322,7 @@ metadata.total_quantity_by_dimension = {
 
 ### RQ12 — `InvoiceLine.unit_price_snapshot` purpose and type
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `unit_price_snapshot` is on `InvoiceLine` but its type and meaning are undefined. Since prices can differ day-to-day within the same invoice period, a single snapshot at the line level is ambiguous. Per-day price data is already captured in `InvoiceDailyCost`.
@@ -340,7 +340,7 @@ metadata.total_quantity_by_dimension = {
 
 ### RQ13 — Duplicate invoice constraint
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 No documented uniqueness constraint prevents generating two invoices for the same billing account and billing period. It is unclear whether multiple draft invoices for the same account/period are intentional.
@@ -394,7 +394,7 @@ selected_resource_types = ["virtual_machine"]
 
 ### RQ14 — `deleted_at` soft-delete semantics
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 Both `StorageHotel` and `VirtualMachine` have a `deleted_at` field implying soft-delete, but nothing defines:
@@ -438,7 +438,7 @@ Recommended invariants:
 
 ### RQ15 — Invoice API endpoints: where are they specified?
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 No PRP or doc defines the invoice lifecycle API: generate, finalize, retrieve. The billing engine PRP defines the algorithm but not the HTTP interface.
@@ -533,7 +533,7 @@ Reasoning:
 
 ### RQ16 — Q1 in clarifications.md: marked HELPME but Q6/Q7 already resolve it
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 Q1 asks about VM billing strategy and is marked HELPME. But Q6 answers "one row per dimension per day" and Q7 answers "discounts per dimension independently." Q1 should be marked ANSWERED.
@@ -546,7 +546,7 @@ Q1 asks about VM billing strategy and is marked HELPME. But Q6 answers "one row 
 
 ### RQ17 — Q3 in clarifications.md: marked HELPME but has an answer
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 Q3 has status "HELPME" but the answer `(c) Formatted string with pattern INV-YYYY-mm-NNNN` is already written in the document.
@@ -559,7 +559,7 @@ Q3 has status "HELPME" but the answer `(c) Formatted string with pattern INV-YYY
 
 ### RQ18 — Q7 in clarifications.md: trailing `|` typo
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 Line reads `**Status:** ANSWERED|` — stray pipe character.
@@ -572,7 +572,7 @@ Line reads `**Status:** ANSWERED|` — stray pipe character.
 
 ### RQ19 — VM and StorageHotel PRP API paths missing `/api/v1/` prefix
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 Both resource PRPs list endpoints without the required `/api/v1/` prefix, contradicting the API rules in `CLAUDE.md`.
@@ -585,7 +585,7 @@ Both resource PRPs list endpoints without the required `/api/v1/` prefix, contra
 
 ### RQ20 — mypy described as "optional" in one doc, mandatory in another
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `DEVELOPER_TOOLING_AND_ENVIRONMENT.md` says "Type checking is optional but available." `CODING_RULES.md` says all new code must be compatible with mypy and type annotations are required. mypy is also in pre-commit hooks.
@@ -598,7 +598,7 @@ Both resource PRPs list endpoints without the required `/api/v1/` prefix, contra
 
 ### RQ21 — `django-doctor` not in pre-commit
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `CODING_RULES.md` lists `django-doctor` as a quality tool. `pyproject.toml` includes it under optional dependencies. But it is not in the pre-commit config and `DEVELOPER_TOOLING_AND_ENVIRONMENT.md` does not mention it.
@@ -614,7 +614,7 @@ Both resource PRPs list endpoints without the required `/api/v1/` prefix, contra
 
 ### RQ22 — Testing skill references `apps/invoices/` (wrong app name)
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `.claude/skills/django-testing-pattern/SKILL.md` has an example path `apps/invoices/tests/test_api_invoice_generation.py`. The project has `apps/billing/`, not `apps/invoices/`.
@@ -627,7 +627,7 @@ Both resource PRPs list endpoints without the required `/api/v1/` prefix, contra
 
 ### RQ23 — Testing skill SKILL.md wrapped in markdown code fence
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 The entire `django-testing-pattern/SKILL.md` is wrapped in a ` ```md ` / ` ``` ` code fence. The API endpoint skill does not have this. This may cause the skill to be parsed as a code block rather than actionable content.

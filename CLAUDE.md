@@ -9,7 +9,6 @@ Stack:
 - Django 5.2 LTS
 - Django REST Framework
 - PostgreSQL
-- LDAP authentication
 - Python 3.12
 - uv for dependency management
 - pytest for testing
@@ -129,15 +128,6 @@ Use for:
 - cross-domain orchestration
 - service-layer boundaries
 - modular monolith decisions
-
-### `.claude/docs/STRUCTURE.md`
-
-Use for:
-
-- where files should live
-- app layout
-- selectors/services/tests placement
-- repository organization
 
 ### `.claude/docs/API.md`
 
@@ -277,18 +267,18 @@ Use this table to minimize context loading and improve implementation accuracy.
 
 | Task | Read First | Also Read If Needed | Skill |
 |---|---|---|---|
-| Add or update API endpoint | `API.md` | `PROJECT.md`, `STRUCTURE.md`, `TESTING.md`, `CODING_RULES.md` | `django-api-endpoint-pattern` |
+| Add or update API endpoint | `API.md` | `PROJECT.md`, `TESTING.md`, `CODING_RULES.md` | `django-api-endpoint-pattern` |
 | Add or update serializer | `API.md` | `PROJECT.md`, `CODING_RULES.md` | `django-api-endpoint-pattern` |
 | Add endpoint tests | `TESTING.md` | `API.md`, `TESTING_TEMPLATES.md` | `django-testing-pattern` |
 | Add service tests | `TESTING.md` | `PROJECT.md`, `BILLING.md`, `TESTING_TEMPLATES.md` | `django-testing-pattern` |
 | Change billing logic | `BILLING.md` | `PROJECT.md`, `ARCHITECTURE.md`, `TESTING.md`, `CODING_RULES.md` | `django-testing-pattern` |
-| Add invoice-generation behavior | `BILLING.md` | `ARCHITECTURE.md`, `STRUCTURE.md`, `TESTING.md` | `django-testing-pattern` |
-| Add new resource type | `PROJECT.md` | `ARCHITECTURE.md`, `BILLING.md`, `STRUCTURE.md`, `TESTING.md` | none |
-| Move or create files | `STRUCTURE.md` | `ARCHITECTURE.md`, `CODING_RULES.md` | none |
-| Refactor service-layer code | `ARCHITECTURE.md` | `STRUCTURE.md`, `CODING_RULES.md`, `TESTING.md` | none |
+| Add invoice-generation behavior | `BILLING.md` | `ARCHITECTURE.md`, `TESTING.md` | `django-testing-pattern` |
+| Add new resource type | `PROJECT.md` | `ARCHITECTURE.md`, `BILLING.md`, `TESTING.md` | none |
+| Move or create files | `ARCHITECTURE.md` | `CODING_RULES.md` | none |
+| Refactor service-layer code | `ARCHITECTURE.md` | `CODING_RULES.md`, `TESTING.md` | none |
 | Update financial rounding/pricing behavior | `BILLING.md` | `TESTING.md`, `PROJECT.md` | `django-testing-pattern` |
-| Update developer commands or tooling docs | `DEVELOPER_TOOLING_AND_ENVIRONMENT.md` | `STRUCTURE.md` | none |
-| Write or update Claude-facing docs | relevant target doc | `PROJECT.md`, `STRUCTURE.md`, `CODING_RULES.md` | none |
+| Update developer commands or tooling docs | `DEVELOPER_TOOLING_AND_ENVIRONMENT.md` | | none |
+| Write or update Claude-facing docs | relevant target doc | `PROJECT.md`, `CODING_RULES.md` | none |
 
 If multiple tasks are involved, load only the docs required for the current subtask.
 
@@ -419,7 +409,6 @@ Read:
 - `PROJECT.md`
 - `ARCHITECTURE.md`
 - `BILLING.md`
-- `STRUCTURE.md`
 - `TESTING.md`
 
 Use skill:

@@ -7,7 +7,9 @@ along with their answers. Unanswered questions are marked as PENDING.
 
 ## Q1 — VirtualMachine v1 billing strategy
 
-**Status:** HELPME
+**Status:** ANSWERED
+
+**Answer:** VM v1 billing is per-dimension (cpu_count, ram_gb, disk_gb), with 3 InvoiceDailyCost rows per VM per day. Discounts apply per dimension independently (resolved via Q6 and Q7).
 
 **Question:**
 The VM PRP explicitly leaves this unresolved:
@@ -18,7 +20,7 @@ The VM PRP explicitly leaves this unresolved:
 
 ## Q3 — Invoice number format
 
-**Status:** HELPME
+**Status:** ANSWERED
 
 **Question:**
 `invoice_number` is on the Invoice model but the format was unspecified.
@@ -28,8 +30,8 @@ Options:
 - (b) UUID
 - (c) Formatted string
 
-**Answer:** (c) Formatted string with pattern `INV-YYYY-mm-NNNN`.
-Example: `INV-2026-02-0004`.
+**Answer:** (c) Formatted string with pattern `INV-YYYY-mm-NNNNN`.
+Example: `INV-2026-02-00004`. (5-digit counter, global monthly sequence)
 
 ---
 
@@ -55,7 +57,7 @@ When billing a VM per dimension, should `InvoiceDailyCost` produce:
 
 ## Q7 — VM discount model
 
-**Status:** ANSWERED|
+**Status:** ANSWERED
 
 **Question:**
 `ResourcePrice` has `discount_threshold`
@@ -66,7 +68,9 @@ For VM per-dimension billing, does the discount apply:
 
 ## Q8 — Invoice number sequence scope
 
-**Status:** PENDING
+**Status:** ANSWERED
+
+**Answer:** Global per month. All billing accounts share one monthly sequence. Format updated to INV-YYYY-mm-NNNNN (5-digit counter) to allow more than 9999 invoices per month. Unique index on Invoice: (invoice_number) globally unique.
 
 **Question:**
 For `INV-2026-02-0004`, is the 4-digit counter scoped:

@@ -1,4 +1,3 @@
-```md
 ---
 name: django-testing-pattern
 description: Use this skill when writing or updating tests for Django services, billing logic, DRF endpoints, serializers, selectors, or resource-specific invoice scenarios in the Django Invoice API project.
@@ -486,7 +485,7 @@ uv run pytest apps/billing/tests/test_billing_autofill.py -k missing_middle_days
 Run API tests for one endpoint module:
 
 ```bash
-uv run pytest apps/invoices/tests/test_api_invoice_generation.py
+uv run pytest apps/billing/tests/test_api_invoice_generation.py
 ```
 
 Edit a file:
@@ -523,4 +522,3 @@ Do not move detailed project rules into this skill if they already belong in:
 - `.claude/docs/API.md`
 
 Keep this skill focused on workflow and decision-making.
-```
