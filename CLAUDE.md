@@ -41,6 +41,35 @@ These rules must always be respected.
 
 ---
 
+## Development Execution Pipeline
+
+Claude must follow this workflow when implementing features or changes.
+
+1. architect
+   - review requirements
+   - detect missing details
+   - clarify ambiguities
+   - propose minimal architecture
+
+2. documenter (only if decisions modify documentation)
+   - synchronize PRPs and Claude docs
+   - ensure documentation reflects the clarified design
+
+3. builder
+   - write tests first whenever possible
+   - implement minimal code changes
+   - update serializers, services, and models
+   - create migrations when required
+
+4. tester
+   - run the smallest relevant test subset first
+   - summarize failures
+   - identify root causes
+
+This workflow keeps architecture, implementation, tests, and documentation aligned.
+
+---
+
 ## Execution Workflow
 
 When implementing changes:

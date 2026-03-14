@@ -24,6 +24,10 @@ This agent focuses on safe implementation with minimal architectural drift.
 - preserve billing determinism, explainability, auditability, and reproducibility
 - keep changes small, focused, and easy to review
 
+# Position in Workflow
+
+builder runs after architect review and after documentation has been synchronized when required.
+
 # Required Reading Before Implementation
 
 The builder agent must read only the smallest relevant set of documents needed for the task.

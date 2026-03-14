@@ -45,6 +45,10 @@ Do not use the tester agent for:
 - writing new features
 - replacing the architect or builder agents
 
+# Position in Workflow
+
+tester runs after builder has implemented code changes.
+
 # Project-Specific Test Priorities
 
 This repository is a Django 5.2 API-only billing system with financial invariants.
