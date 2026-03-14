@@ -6,7 +6,7 @@ This file contains only questions requiring a decision. The propagation misses f
 
 ### CQ1 — `005-pricing-api.prp.md` and `BillingAccount` API spec
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 Round 3 decided:
@@ -37,13 +37,13 @@ Create `docs/PRP/005-pricing-api.prp.md` covering:
 - `GET /api/v1/billing-accounts/{id}/`
 - `PATCH /api/v1/billing-accounts/{id}/`
 
-**Answer:**
+**Answer:** accept proposal
 
 ---
 
 ### CQ2 — ResourcePrice: PATCH endpoint vs "price rows never updated" rule
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `001-billing-engine.prp.md` states: "price rows **never updated** — new pricing → insert new rows with adjusted effective dates."
@@ -57,13 +57,13 @@ Round 3 (BQ9) decided there should be a `PATCH` endpoint for ResourcePrice. Thes
 
 **Proposal:** Option (a). Keeping ResourcePrice immutable is simpler, safer, and consistent with the existing billing invariant. Document the correction workflow: to change a price, set `effective_to` on the old row and create a new row.
 
-**Answer:**
+**Answer:** accept proposal a
 
 ---
 
 ### CQ13 — `ResourcePrice` field types and precision
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `001-billing-engine.prp.md` lists ResourcePrice fields but no Django field types, precision, or nullability. Migrations cannot be written.
@@ -80,13 +80,13 @@ Round 3 (BQ9) decided there should be a `PATCH` endpoint for ResourcePrice. Thes
 - `effective_to` — DateField, nullable (null = open-ended)
 - `created_at` — DateTimeField, auto_now_add
 
-**Answer:**
+**Answer:** accept proposal
 
 ---
 
 ### CQ14 — `Invoice` field types and precision
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `002-resource-models.prp.md` lists Invoice fields but several have no type/precision. Migrations cannot be written.
@@ -103,13 +103,13 @@ Round 3 (BQ9) decided there should be a `PATCH` endpoint for ResourcePrice. Thes
 - `finalized_at` — DateTimeField, nullable
 - `created_at` / `updated_at` — DateTimeField, auto
 
-**Answer:**
+**Answer:** accept proposal
 
 ---
 
 ### CQ15 — `InvoiceLine` and `InvoiceDailyCost` field types and precision
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 Financial field precision on InvoiceLine and InvoiceDailyCost is unspecified. These are full-precision fields (not rounded) so they need more decimal places than `Invoice.total_amount`.
@@ -134,19 +134,19 @@ Financial field precision on InvoiceLine and InvoiceDailyCost is unspecified. Th
 - `metadata` — JSONField(default=dict)
 - Unique constraint: `(invoice, resource_type, resource_id, date, pricing_dimension)`
 
-**Answer:**
+**Answer:** accept proposal
 
 ---
 
 ### CQ16 — Resource status lifecycle transitions
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 Resources are created as `UNASSIGNED` (per `004-resource-api.prp.md`). The path from `UNASSIGNED` → `ACTIVE` → `RETIRED` happens via PATCH, but:
 - Which transitions are allowed?
 - Can `RETIRED` go back to `ACTIVE`?
-- Must `active_to` be set when transitioning to `RETIRED`?
+    - Must `active_to` be set when transitioning to `RETIRED`?
 - Should `billing_account` be required on creation, or optional (to allow truly unassigned resources)?
 
 **Proposal:**
@@ -158,6 +158,6 @@ Allowed transitions:
 
 `billing_account` on creation: optional. A resource can be created without a billing account and stay `UNASSIGNED` until assigned.
 
-**Answer:**
+**Answer:** Accept proposal
 
 ---

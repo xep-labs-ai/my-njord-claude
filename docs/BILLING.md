@@ -101,7 +101,7 @@ Optional flags:
 Optional selection inputs:
 
 - `resource_types`
-- `resource_ids`
+- `explicit_resources`
 
 ---
 
@@ -125,9 +125,9 @@ Bills all billable resources belonging to the billing account whose concrete mod
 
 Example:
 
-- `["StorageHotel"]`
-- `["VirtualMachine"]`
-- `["StorageHotel", "VirtualMachine"]`
+- `["storage_hotel"]`
+- `["virtual_machine"]`
+- `["storage_hotel", "virtual_machine"]`
 
 ### Explicit resources
 
@@ -164,6 +164,7 @@ A resource is billable for a given day only if:
 
 - it is a concrete resource derived from `ResourceModel`
 - `billing_account_id` is not null
+- `billing_account.make_invoice = True`
 - `active_from <= day`
 - `active_to IS NULL OR day <= active_to`
 - it is included by the invoice selection
@@ -431,7 +432,7 @@ Rounding happens at the invoice level only:
 - `InvoiceLine.total_cost` remains at full `Decimal` precision (full-precision per-resource cost)
 - `Invoice.total_amount` is rounded to 2 decimal places NOK (customer-visible total)
 
-Suggested rounding method:
+Required rounding method:
 
 - `ROUND_HALF_UP`
 
@@ -521,7 +522,7 @@ This includes all active billable resources for the account during the period.
 
 - billing account: `BA-001`
 - selection scope: `resource_types`
-- resource types: `["StorageHotel"]`
+- resource types: `["storage_hotel"]`
 
 This excludes `VirtualMachine` and all other resource types.
 
@@ -529,7 +530,7 @@ This excludes `VirtualMachine` and all other resource types.
 
 - billing account: `BA-001`
 - selection scope: `resource_types`
-- resource types: `["StorageHotel", "VirtualMachine"]`
+- resource types: `["storage_hotel", "virtual_machine"]`
 
 This includes both types and excludes all others.
 
@@ -550,7 +551,7 @@ Example invoice request:
 - billing account: `BA-001`
 - period: `2026-01-01` to `2026-01-31`
 - selection scope: `resource_types`
-- resource types: `["StorageHotel", "VirtualMachine"]`
+- resource types: `["storage_hotel", "virtual_machine"]`
 - `autofill_missing_days=true`
 
 Shared workflow:
