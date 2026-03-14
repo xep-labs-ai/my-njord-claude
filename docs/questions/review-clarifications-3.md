@@ -13,7 +13,7 @@ Questions are grouped by priority.
 
 ### BQ2 — `resource_type` casing: PascalCase vs snake_case
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `resource_type` string format is inconsistent across documents:
@@ -29,13 +29,13 @@ An implementer building the serializer cannot know which format is canonical.
 
 **Proposal:** Option (a). Snake_case is already the majority format across the codebase. Update `BILLING.md` `selected_resource_types` examples to use `["storage_hotel"]`, `["virtual_machine"]`.
 
-**Answer:**
+**Answer:** option a
 
 ---
 
 ### BQ6 — `make_invoice = False` rule missing from billing engine spec
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `BillingAccount.make_invoice` (BooleanField, default=True) was defined in round 2 with the rule: "resources belonging to an account where `make_invoice = False` are excluded from all invoice generation runs silently."
@@ -58,7 +58,7 @@ Also unspecified: if `POST /api/v1/invoices/generate` is called for an account w
 - Add `make_invoice = True` as a required condition in the billable resource rule in `001-billing-engine.prp.md` and `BILLING.md`
 - For the API: option (a) — return 400 when `make_invoice = False`. Silent empty invoices are harder to debug.
 
-**Answer:**
+**Answer:** accept proposal
 
 ---
 
@@ -68,7 +68,7 @@ Also unspecified: if `POST /api/v1/invoices/generate` is called for an account w
 
 ### BQ3 — Old `resource_ids` / `selected_resource_ids` naming still present
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 RQ5 (round 1) decided explicit resource selection uses `explicit_resources` (typed pairs). But two files still use old names:
@@ -79,13 +79,13 @@ RQ5 (round 1) decided explicit resource selection uses `explicit_resources` (typ
 - `BILLING.md`: rename `resource_ids` → `explicit_resources`
 - `002-resource-models.prp.md` Invoice metadata: rename `selected_resource_ids` → `explicit_resources`
 
-**Answer:**
+**Answer:** accept proposal
 
 ---
 
 ### BQ4 — StorageHotel ingestion: request field `quota_value` vs model field `quota_raw`
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 In `004-resource-api.prp.md`:
@@ -101,13 +101,13 @@ The name mismatch means the serializer would need a silent field rename, which i
 
 **Proposal:** Option (a). Use `quota_raw` everywhere. The model field name is the source of truth. Update `004-resource-api.prp.md` request example.
 
-**Answer:**
+**Answer:** accept proposal
 
 ---
 
 ### BQ5 — StorageHotel PRP metadata key not updated to standard format
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `storage-hotel.prp.md` still uses `total_quota_days_tb` as the InvoiceLine metadata key.
@@ -126,13 +126,13 @@ Update `storage-hotel.prp.md` InvoiceLine metadata example to match the standard
 }
 ```
 
-**Answer:**
+**Answer:** accept proposal
 
 ---
 
 ### BQ7 — `BillingAccountBase` field constraints underspecified
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `002-resource-models.prp.md` defines `BillingAccountBase` fields but is missing nullable/required/default specs for most of them. Migrations cannot be written without this.
@@ -157,16 +157,16 @@ And on `BillingAccount`:
 Define each field's required/optional status. Suggested defaults:
 - All contact fields: optional (`blank=True, null=True`)
 - `customer_number`: optional, unique when set (`blank=True, null=True, unique=True` — or nullable non-unique)
-- `internal_customer`: default `False`
+- `internal_customer`: default `True`
 - All UiO-specific fields: optional (`blank=True, null=True`)
 
-**Answer:**
+**Answer:** accept proposal
 
 ---
 
 ### BQ9 — `ResourcePrice` overlap prevention: enforcement path undefined
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `001-billing-engine.prp.md` says "No two ResourcePrice rows for the same `(price_list, resource_type, pricing_dimension)` may have overlapping effective date ranges — enforced at the service layer." But no PRP says:
@@ -181,13 +181,55 @@ Define each field's required/optional status. Suggested defaults:
 
 **Proposal:** Option (a) for v1. ResourcePrice rows are managed via Django admin. Overlap validation is enforced in the model's `clean()` method. Document this explicitly in `001-billing-engine.prp.md`.
 
-**Answer:**
+**Answer:** My answer is the following block:
+
+```
+Reject option (a) for v1.
+
+Decision:
+
+`ResourcePrice` should be managed through an API in v1, not only through Django admin.
+
+Recommended endpoints:
+
+- `POST   /api/v1/price-lists/{price_list_id}/resource-prices/`
+- `GET    /api/v1/price-lists/{price_list_id}/resource-prices/`
+- `GET    /api/v1/price-lists/{price_list_id}/resource-prices/{id}/`
+- `PATCH  /api/v1/price-lists/{price_list_id}/resource-prices/{id}/`
+
+Reasoning:
+
+- `ResourcePrice` is core billing configuration and should be manageable through a documented, testable API
+- nesting it under `PriceList` makes the ownership relationship explicit
+- this avoids relying on Django admin for a critical billing workflow
+- overlap prevention can then be enforced consistently in a single service/domain write path
+
+Enforcement:
+
+For the same (`price_list`, `resource_type`, `pricing_dimension`), effective date ranges must not overlap.
+
+Overlap validation should be enforced in the pricing service/domain layer and surfaced through API validation with clear error responses.
+
+Documentation:
+
+- the billing invariant belongs in `001-billing-engine.prp.md`
+- the endpoint contract belongs in the pricing/resource API PRP
+Small refinement I would add
+
+I would probably create a separate PRP for pricing/configuration APIs instead of mixing this into 004-resource-api.prp.md.
+
+Something like:
+
+docs/PRP/005-pricing-api.prp.md
+
+because PriceList and ResourcePrice are not resources in the same sense as StorageHotel and VirtualMachine.
+```
 
 ---
 
 ### BQ10 — No CRUD endpoints defined for `BillingAccount`, `PriceList`, `ResourcePrice`
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 Invoice generation requires a `BillingAccount` with a `PriceList` and `ResourcePrice` rows to exist. But no PRP defines how these entities are created. An implementer building end-to-end cannot create test data through the API.
@@ -199,13 +241,13 @@ Invoice generation requires a `BillingAccount` with a `PriceList` and `ResourceP
 
 **Proposal:** Option (c). `BillingAccount` likely needs API endpoints since operators need to manage billing accounts programmatically. `PriceList` and `ResourcePrice` are pricing configuration that changes rarely and can be admin-managed in v1.
 
-**Answer:**
+**Answer:** BillingAccount needs a anedopoint. I do not want to use django admin for anything, unless strictly necessary. PriceList and ResourcePrice should be managed like mentioned in BQ9. You can ask again about this
 
 ---
 
 ### BQ12 — Rounding method stated as "suggested" rather than required
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `BILLING.md` describes `ROUND_HALF_UP` as "Suggested rounding method." In a financial system this must be a hard requirement, not a suggestion. `001-billing-engine.prp.md` states the 2-decimal rule but does not specify the rounding method at all.
@@ -214,13 +256,13 @@ Invoice generation requires a `BillingAccount` with a `PriceList` and `ResourceP
 - Change "Suggested rounding method" → "Required rounding method: `ROUND_HALF_UP`" in `BILLING.md`
 - Add `ROUND_HALF_UP` as the required rounding method to `001-billing-engine.prp.md`
 
-**Answer:**
+**Answer:** accept proposal
 
 ---
 
 ### BQ13 — `InvoiceDailyCost.metadata` required vs optional fields unclear
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `002-resource-models.prp.md` lists metadata fields with "may include" language.
@@ -241,7 +283,39 @@ Optional (useful but not mandatory):
 - `dimension_costs` — per-dimension cost breakdown (for VM multi-dimension rows)
 - `missing_data_flags` — additional diagnostic info
 
-**Answer:**
+**Answer:** The answer is this block:
+
+```
+Accept the proposal, but refine `resolved_price` to `resolved_prices`.
+
+Decision:
+
+`InvoiceDailyCost.metadata` must distinguish between required and optional fields.
+
+Required:
+- `normalized_usage`
+- `resolved_prices`
+- `autofilled`
+
+Optional:
+- `source_snapshot_date`
+- `dimension_costs`
+- `missing_data_flags`
+- `resource_snapshot`
+
+Reasoning:
+
+- `InvoiceDailyCost` is the authoritative daily audit snapshot, so a minimum metadata contract must be mandatory
+- required fields must be sufficient to explain and reproduce the daily billed amount
+- the structure must work for both single-dimension and multi-dimension resources
+- for that reason, `resolved_price` should be modeled as `resolved_prices`
+
+Notes:
+
+- `source_snapshot_date` is especially useful when `autofilled = true`
+- `dimension_costs` is optional for single-dimension resources and strongly recommended for multi-dimension resources
+- optional fields may add audit/debug value, but the required fields are the minimum reproducibility contract
+```
 
 ---
 
@@ -251,20 +325,20 @@ Optional (useful but not mandatory):
 
 ### BQ1 — `STRUCTURE.md` still referenced in `documenter.md`
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 AQ7 (round 2) removed `STRUCTURE.md` references from most files, but `.claude/agents/documenter.md` still lists it in the "Allowed Documentation Targets" section.
 
 **Proposal:** Remove `STRUCTURE.md` from the allowed targets list in `documenter.md`. Replace with `ARCHITECTURE.md` if file-placement guidance is needed.
 
-**Answer:**
+**Answer:** Accept proposal
 
 ---
 
 ### BQ8 — `InvoiceDailyCost` → `InvoiceLine` relationship is implicit, never stated
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 `InvoiceDailyCost` has a FK to `Invoice` but no FK to `InvoiceLine`. The relationship to its parent line is through `(invoice, resource_type, resource_id)` tuple matching. This is not stated anywhere — an implementer must guess.
@@ -275,19 +349,19 @@ AQ7 (round 2) removed `STRUCTURE.md` references from most files, but `.claude/ag
 
 **Proposal:** Option (a) for v1. The tuple approach is already implied by the data model and avoids the need to manage a FK when replacing drafts. Document this explicitly.
 
-**Answer:**
+**Answer:** accept proposal
 
 ---
 
 ### BQ11 — `003-invoice-api.prp.md` still shows ambiguous `billing_account` placeholder
 
-**Status:** PENDING
+**Status:** ANSWERED
 
 **Problem:**
 The request body example in `003-invoice-api.prp.md` still shows `"billing_account": "<id or identifier>"`. AQ9 decided this is the integer PK.
 
 **Proposal:** Change to `"billing_account": 1` (integer literal) to match the decision and all resource API examples.
 
-**Answer:**
+**Answer:** accept proposal, but also billing_account name should be unique too
 
 ---
