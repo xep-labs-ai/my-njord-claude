@@ -132,7 +132,8 @@ Future resource types should extend the same architectural pattern rather than i
 
 All domain models live in `apps/billing/models/` as a Python package. Organize into sub-modules:
 
-- `apps/billing/models/billing_accounts.py` — BillingAccountBase, BillingAccount
+- `apps/billing/models/base.py` — TimestampedModel, CreatedAtModel, BillingAccountBase (abstract)
+- `apps/billing/models/billing_accounts.py` — BillingAccountBase (abstract), BillingAccount (concrete UiO implementation)
 - `apps/billing/models/pricing.py` — PriceList, ResourcePrice
 - `apps/billing/models/resources.py` — ResourceModel (abstract), StorageHotel, VirtualMachine
 - `apps/billing/models/snapshots.py` — StorageHotelDailyQuota, VirtualMachineDailyUsage

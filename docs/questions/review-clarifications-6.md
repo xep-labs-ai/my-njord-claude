@@ -428,6 +428,28 @@ Answer: accept proposal
 
 ---
 
+### EQ4b — `provisional` flag: EQ4 vs EQ10 conflict resolution
+
+**Status:** ANSWERED
+
+**Problem:**
+EQ4 says future-dated invoices must be "explicitly marked as incomplete/provisional." EQ10 says `incomplete = false` when all days were resolved from real snapshots or successful autofill. These conflict: a fully autofilled future-dated invoice would be `incomplete=false` per EQ10 but still needs a marker per EQ4.
+
+**Options:**
+- (a) Add a separate `provisional` flag — independent from `incomplete`.
+- (b) EQ10 wins — drop the EQ4 provisional requirement.
+- (c) EQ4 wins — `incomplete=true` whenever `period_end > today`.
+
+**Answer:** Accept option (a).
+
+Add a `provisional` boolean flag to `Invoice.metadata`:
+
+- `provisional = true` when `period_end > today` at the time of invoice generation.
+- `provisional = false` (default) for invoices covering only past or current-day periods.
+- `incomplete` and `provisional` are independent — both can be true simultaneously (e.g., a future-dated invoice where some resources also had no prior snapshot and were billed at zero).
+
+---
+
 ### EQ20 — `/effective-to` PATCH URL pattern: keep as-is or normalize to standard PATCH?
 
 **Status:** OPEN

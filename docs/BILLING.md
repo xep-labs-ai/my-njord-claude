@@ -319,7 +319,7 @@ Shared requirements:
 Resource-specific pricing examples:
 
 - `StorageHotel`: yearly price per TB
-- `VirtualMachine`: yearly or monthly price by CPU, RAM, and disk dimensions
+- `VirtualMachine`: yearly price per CPU count, per GB RAM, and per GB disk
 - future resources: any deterministic formula defined by their billing specification
 
 Shared billing orchestration must not assume a single billing unit across all resource types.
