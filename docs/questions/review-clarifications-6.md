@@ -19,6 +19,8 @@
 
 **Proposal:** Option (a). Missing pricing should always be fatal regardless of `force`. A resource billed at zero due to a pricing gap is worse than a failed invoice. Add to `001-billing-engine.prp.md`: "Missing pricing data causes invoice generation to fail even when `force=true`. The `force` flag only affects missing usage data and duplicate draft handling."
 
+Answer: accept proposal a
+
 ---
 
 ### EQ2 — Finalize endpoint: 409 vs 422 overlap + 404 in wrong place
@@ -41,6 +43,8 @@ Two issues:
 - Remove 422 from the finalize endpoint (or reserve it for a distinct business rule, e.g., invoice has zero lines)
 - Remove "does not exist" from the 409 description
 
+Answer: accept proposal
+
 ---
 
 ### EQ3 — Invoice generation: should `period_start > period_end` be rejected?
@@ -51,6 +55,8 @@ Two issues:
 The validation failure cases in `003-invoice-api.prp.md` do not include `period_start` after `period_end`. This is a basic guard that every invoice generation implementation will need.
 
 **Proposal:** Add to the validation failure list: "`period_start` is after `period_end` → 400 Bad Request."
+
+Answer: accept proposal
 
 ---
 
@@ -66,6 +72,32 @@ The snapshot ingestion API rejects future-dated snapshots (date > today). But th
 - (b) Allow it — the missing-data handling rules take over.
 
 **Proposal:** Option (a). Reject at API layer. Future-dated invoice periods have no valid use case in v1, and the failure mode with `force=true` (zero-cost invoice for days that haven't happened yet) is confusing and potentially dangerous.
+
+Answer: The following block is my proposal:
+
+```
+Partially reject option (a) and refine the rule.
+
+Decision:
+
+- `period_end > today` is allowed only when `autofill_missing_days = true`
+- without `autofill_missing_days = true`, invoice generation must fail validation
+- `force=true` alone must not allow future-dated invoice generation
+- any invoice containing future days must be explicitly marked as incomplete/provisional in invoice metadata
+
+Reasoning:
+
+- future days cannot have real snapshots in v1 because snapshot ingestion rejects future-dated data
+- a normal invoice for a future period is therefore not valid under standard billing rules
+- however, if the caller explicitly enables `autofill_missing_days`, the system may generate a provisional invoice by carrying forward the latest valid prior snapshot into future days
+- this must be explicit opt-in behavior, not the default
+
+Rules:
+
+- if `period_end > today` and `autofill_missing_days != true`, reject the request
+- if `period_end > today` and `autofill_missing_days = true`, allow generation using the standard autofill rules
+- if no valid prior snapshot exists for a required resource, invoice generation must still fail according to the missing-data policy
+```
 
 ---
 
@@ -84,6 +116,8 @@ And what if `force=true` is also set?
 - `force=false` + `autofill_missing_days=true` + no prior snapshot → entire invoice generation fails (fatal).
 - `force=true` + `autofill_missing_days=true` + no prior snapshot → resource is billed at zero for all its days; reported in `missing_data_summary`; invoice marked `incomplete=true`.
 
+Answer: accept and document proposal
+
 ---
 
 ### EQ6 — Invoice number generation algorithm
@@ -101,6 +135,8 @@ The format `INV-YYYY-mm-NNNNN` is shown but the algorithm is not defined:
 - `NNNNN` is a **global auto-incrementing sequence** (not per-month). Gaps are acceptable (already stated in spec).
 - Concurrency: use `SELECT MAX(invoice_number) FOR UPDATE` within the finalization transaction, or a dedicated PostgreSQL sequence.
 
+Answer: accept proposal
+
 ---
 
 ### EQ7 — `resource_type` registry: where are valid values defined and enforced?
@@ -115,6 +151,8 @@ The format `INV-YYYY-mm-NNNNN` is shown but the algorithm is not defined:
 - Convention: snake_case of the Django model name
 - Code location: a choices class or constant module in `apps/billing/`
 - Validation: invoice generation and ResourcePrice creation must reject unknown resource types with 400
+
+Answer: accept proposal
 
 ---
 
@@ -132,6 +170,8 @@ The format `INV-YYYY-mm-NNNNN` is shown but the algorithm is not defined:
 
 **Proposal:** Option (b). Finalized invoices are already immutable. The resource PATCH only affects future generation runs. Add a note: "Changing `active_from` or `active_to` on a resource with finalized invoice data is allowed. Finalized invoices are unaffected — they represent a point-in-time calculation."
 
+Answer: accept proposal
+
 ---
 
 ### EQ9 — Soft-delete: is there an API endpoint or is it triggered via PATCH?
@@ -148,6 +188,8 @@ The format `INV-YYYY-mm-NNNNN` is shown but the algorithm is not defined:
 
 **Proposal:** Option (b). Keep the API surface minimal. The PATCH to `status=RETIRED` (which already requires `active_to`) triggers `deleted_at=now()` in the service layer. No DELETE endpoint in v1. Add to `004-resource-api.prp.md`: "When a resource transitions to RETIRED via PATCH, the service layer sets `deleted_at` to the current timestamp. There is no dedicated DELETE endpoint."
 
+Answer: accept proposal
+
 ---
 
 ### EQ10 — `incomplete` flag: when is it `true`?
@@ -159,6 +201,31 @@ The format `INV-YYYY-mm-NNNNN` is shown but the algorithm is not defined:
 
 **Proposal:** Define: "`incomplete = true` when `force=true` was used and at least one resource had missing usage data that was billed at zero (days with no snapshot and no autofill). An autofilled invoice where all days were successfully filled using the carry-forward rule is **not** considered incomplete."
 
+Answer: This following block is my proposal:
+
+```
+Partially accept the proposal, but broaden the definition.
+
+Decision:
+
+`incomplete = true` when the invoice was generated under degraded fallback conditions because the billing engine could not fully evaluate all required billing inputs under normal rules.
+
+In v1, this means `incomplete = true` when:
+
+- `force = true` was used, and
+- at least one billed resource/day could not be resolved from either:
+  - a real snapshot for that day, or
+  - a successful autofill from a valid prior snapshot,
+- and the system still generated the invoice using fallback behavior such as zero-cost billing or other forced missing-data handling
+
+`incomplete = false` when all billed resource-days were resolved from real snapshots or successful autofill.
+
+Clarification:
+
+- `autofill_missing_days = true` does not by itself make an invoice incomplete
+- a fully autofilled invoice is still considered complete if all required days were successfully filled under the documented carry-forward rule
+```
+
 ---
 
 ### EQ11 — `InvoiceLine.description` generation rule
@@ -169,6 +236,29 @@ The format `INV-YYYY-mm-NNNNN` is shown but the algorithm is not defined:
 `003-invoice-api.prp.md` shows `"description": "StorageHotel #101"` as an example, but no rule defines how to construct this string. Should it use the resource's `name` field? A formatted type+id string? Both?
 
 **Proposal:** Define: "`InvoiceLine.description` is set to the resource's `name` field at the time of invoice generation. If `name` is blank or null, fall back to `{ResourceType} #{resource_id}` (e.g., `StorageHotel #101`)."
+
+Answer: This following block is my proposal:
+
+```
+Accept the proposal, with one refinement.
+
+Decision:
+
+`InvoiceLine.description` is a frozen human-readable description captured at invoice generation time.
+
+Rule:
+
+- use the resource's `name` field if it is present and non-blank
+- if `name` is null or blank, fall back to `{ResourceType} #{resource_id}` (for example, `StorageHotel #101`)
+- once stored on the invoice line, the description must not be recomputed from the live resource
+
+Reasoning:
+
+- the description should be human-readable and stable
+- `name` is the best default when available
+- a deterministic fallback ensures every invoice line has a usable description
+- freezing the value at invoice-generation time preserves historical correctness even if the resource is renamed later
+```
 
 ---
 
@@ -188,6 +278,31 @@ Storing a full resource snapshot per InvoiceDailyCost row is storage-intensive (
 
 **Proposal:** Option (a). Require `resource_snapshot` in `InvoiceLine.metadata` for auditability. Keep it optional in InvoiceDailyCost to avoid row explosion. Update `001-billing-engine.prp.md` to reflect this distinction.
 
+Answer: The following block is my proposal:
+
+```
+Accept the proposal and choose option (a).
+
+Decision:
+
+- require `resource_snapshot` in `InvoiceLine.metadata`
+- keep `resource_snapshot` optional in `InvoiceDailyCost.metadata`
+
+Reasoning:
+
+- `InvoiceLine` is the correct level for the frozen identifying snapshot of the billed resource
+- this preserves auditability while avoiding unnecessary duplication
+- `InvoiceDailyCost` should focus on daily billing facts such as normalized usage, resolved prices, autofill state, and daily cost
+- requiring `resource_snapshot` on every daily row would create significant storage overhead without adding proportional value in v1
+
+Documentation update:
+
+`001-billing-engine.prp.md` should explicitly distinguish the two levels:
+
+- `InvoiceLine.metadata` must include `resource_snapshot`
+- `InvoiceDailyCost.metadata` may include `resource_snapshot`, but it is optional in v1
+```
+
 ---
 
 ### EQ13 — `quota_unit` and `provisioner` in InvoiceLine metadata: required or optional?
@@ -201,6 +316,8 @@ Storing a full resource snapshot per InvoiceDailyCost row is storage-intensive (
 - Make `quota_unit` **required** in InvoiceLine metadata for `resource_type = "storage_hotel"`.
 - Make `provisioner` **required** in InvoiceLine metadata for `resource_type = "virtual_machine"`.
 - Update `002-resource-models.prp.md` accordingly.
+
+Answer: accept proposal
 
 ---
 
@@ -217,6 +334,8 @@ Storing a full resource snapshot per InvoiceDailyCost row is storage-intensive (
 
 **Proposal:** Remove "or monthly" from BILLING.md. Replace with "yearly price per CPU count, per GB RAM, and per GB disk."
 
+Answer: accept proposal
+
 ---
 
 ### EQ15 — `Invoice.updated_at` missing from field list in `002-resource-models.prp.md`
@@ -227,6 +346,8 @@ Storing a full resource snapshot per InvoiceDailyCost row is storage-intensive (
 `002-resource-models.prp.md` Invoice field list (lines 352–365) does not include `updated_at`, but line 401 states `created_at / updated_at — DateTimeField, auto`.
 
 **Proposal:** Add `updated_at` to the Invoice field list for consistency.
+
+Answer: accept proposal
 
 ---
 
@@ -241,6 +362,8 @@ The model organization section in `.claude/docs/ARCHITECTURE.md` lists `billing_
 - Add `apps/billing/models/base.py` to the model layout for `TimestampedModel`, `CreatedAtModel`, and `BillingAccountBase`.
 - Update `billing_accounts.py` entry to: "BillingAccountBase (abstract), BillingAccount (concrete UiO implementation)."
 
+Answer: accept proposal
+
 ---
 
 ### EQ17 — LDAP in `CLAUDE.md` stack vs auth as non-goal in `000-system-overview.prp.md`
@@ -251,6 +374,8 @@ The model organization section in `.claude/docs/ARCHITECTURE.md` lists `billing_
 `CLAUDE.md` stack listing includes "LDAP authentication." `000-system-overview.prp.md` Non-Goals section includes "authentication / authorization." This causes a developer to be unsure whether auth middleware or login views are needed.
 
 **Proposal:** Remove "LDAP authentication" from the CLAUDE.md stack listing entirely (it was already removed in an earlier round — this may be a residual copy). Auth is an infrastructure/deployment concern, not part of the billing API application logic in v1.
+
+Answer: accept proposal
 
 ---
 
@@ -275,6 +400,8 @@ The model organization section in `.claude/docs/ARCHITECTURE.md` lists `billing_
 
 Where `applied_price` is the price actually used in the daily cost calculation.
 
+Answer: accept proposal
+
 ---
 
 ### EQ19 — `missing_data_summary` shape undefined
@@ -297,6 +424,8 @@ Where `applied_price` is the price actually used in the daily cost calculation.
 }
 ```
 
+Answer: accept proposal
+
 ---
 
 ### EQ20 — `/effective-to` PATCH URL pattern: keep as-is or normalize to standard PATCH?
@@ -311,5 +440,7 @@ Where `applied_price` is the price actually used in the daily cost calculation.
 - (b) Change to `PATCH /api/v1/price-lists/{price_list_id}/resource-prices/{id}/` with a dedicated serializer that only accepts `effective_to`.
 
 **Proposal:** Option (a). The explicit URL signals to API consumers that this is a constrained operation, not a general PATCH. The drf-spectacular schema can be decorated manually if needed. This is consistent with the immutability model of ResourcePrice.
+
+Answer: accept proposal a
 
 ---
