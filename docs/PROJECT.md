@@ -16,3 +16,13 @@ Core rules:
 - Finalized invoices are immutable
 
 Detailed product rules live in docs/PRP/.
+
+---
+
+## Implementation Status
+
+No Django project has been developed yet.
+
+The only file that exists at the project root (besides documentation) is `pyproject.toml`, which defines the chosen tools, plugins, and dependencies for when implementation begins.
+
+Do not assume any Django app, settings, migrations, or tests exist. Everything must be created from scratch.

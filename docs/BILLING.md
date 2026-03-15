@@ -181,6 +181,16 @@ Billability is resolved **per day** using the `active_from` and `active_to` fiel
 
 ---
 
+## Pre-flight Validation
+
+Before any resource selection or per-day evaluation happens:
+
+- `billing_account.make_invoice` must be `True`. If `make_invoice = False`, invoice generation must fail immediately with a validation error.
+
+This check is intentionally placed before resource selection to fail fast when the billing account has invoicing disabled.
+
+---
+
 ## Daily Processing Model
 
 Billing is evaluated one day at a time.
@@ -218,6 +228,20 @@ If invoice period is:
 then 31 daily evaluations must happen for each selected resource that is billable during those days.
 
 All billing date logic uses `Europe/Oslo`.
+
+---
+
+## Non-billable Days Rule
+
+Non-billable days produce **no `InvoiceDailyCost` row**.
+
+Non-billable days include:
+
+- days before `active_from`
+- days after `active_to`
+- any day outside the resource's billable window per the Billable Resource Rule
+
+Auditability for the active billing window and billed day count may be preserved in invoice-line or invoice-level metadata.
 
 ---
 
@@ -364,6 +388,42 @@ This helper belongs in shared billing utilities.
 
 ---
 
+## Multi-Dimension Resource Aggregation
+
+There is **one `InvoiceDailyCost` row per resource per day**.
+
+For multi-dimension resources (e.g., VirtualMachine), the per-dimension breakdown is stored in `InvoiceDailyCost.metadata` under fields such as `normalized_usage`, `resolved_prices`, and `dimension_costs`.
+
+### Aggregation Rules
+
+- `InvoiceDailyCost.daily_cost` = sum of all per-dimension daily costs for that resource on that day
+- `InvoiceLine.total_cost` = sum of `InvoiceDailyCost.daily_cost` across all billed days for that resource
+
+Required metadata shape for multi-dimension resources like VirtualMachine:
+
+```json
+{
+  "normalized_usage": {
+    "cpu_count": "8",
+    "ram_gb": "32",
+    "disk_gb": "500"
+  },
+  "resolved_prices": {
+    "cpu_count": {"price_per_unit_year": "300", "currency": "NOK"},
+    "ram_gb": {"price_per_unit_year": "40", "currency": "NOK"},
+    "disk_gb": {"price_per_unit_year": "2", "currency": "NOK"}
+  },
+  "dimension_costs": {
+    "cpu_count": "6.58",
+    "ram_gb": "3.51",
+    "disk_gb": "2.74"
+  },
+  "autofilled": false
+}
+```
+
+---
+
 ## Invoice Total
 
 Invoice total is the sum of all daily costs for all included resources.
@@ -403,6 +463,7 @@ Per billed resource:
 - resource type
 - total cost
 - human-readable description
+- `resource_snapshot` — **required** frozen snapshot of the resource's identifying attributes at generation time. This is the primary audit snapshot and must be present for all InvoiceLines.
 - summary billing metadata useful for debugging
 
 ### Daily-level snapshot
@@ -432,11 +493,22 @@ Rounding happens at the invoice level only:
 - `InvoiceLine.total_cost` remains at full `Decimal` precision (full-precision per-resource cost)
 - `Invoice.total_amount` is rounded to 2 decimal places NOK (customer-visible total)
 
+Rounding process:
+
+- Sum all full-precision `InvoiceLine.total_cost` values
+- Round once at the invoice level to produce `Invoice.total_amount`
+
 Required rounding method:
 
 - `ROUND_HALF_UP`
 
 The rounding policy must be consistent across resource types.
+
+---
+
+## Currency Consistency
+
+`InvoiceLine.currency` and `InvoiceDailyCost.currency` must match `Invoice.currency`. This is a service-layer invariant that must be maintained during invoice generation.
 
 ---
 
@@ -467,7 +539,9 @@ The rounding policy must be consistent across resource types.
 
 ## Duplicate Invoice Prevention
 
-There must be at most one draft invoice per `(billing_account, period_start, period_end, selection_scope, selected_resource_types, explicit_resources)`.
+There must be at most one draft invoice per `(billing_account, period_start, period_end, selection_scope, selection_fingerprint)`.
+
+`selection_fingerprint` is a deterministic hash of the canonical selection payload (resource types and explicit resources, each sorted before hashing).
 
 A matching finalized invoice must block regeneration entirely (finalized invoices are immutable).
 

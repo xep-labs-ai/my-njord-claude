@@ -101,9 +101,9 @@ Service tests are the **most important tests in the system**.
 
 Most billing scenarios should be implemented as service tests.
 
-Typical location:
+Canonical location:
 
-tests/services/
+apps/<app>/tests/
 
 
 ---
@@ -120,9 +120,9 @@ API tests verify:
 
 API tests must **not re-implement billing assertions** already tested in services.
 
-Typical location:
+Canonical location:
 
-tests/api/
+apps/<app>/tests/
 
 
 ---
@@ -138,9 +138,9 @@ Model tests verify:
 
 They should remain minimal.
 
-Typical location:
+Canonical location:
 
-tests/models/
+apps/<app>/tests/
 
 
 ---
