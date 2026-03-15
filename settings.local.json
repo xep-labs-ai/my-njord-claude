@@ -4,7 +4,10 @@
       "Bash(git:*)",
       "Bash(uv:*)",
       "Bash(uv pip install:*)",
-      "Bash(source:*)"
+      "Bash(source:*)",
+      "mcp__filesystem__read_text_file",
+      "mcp__filesystem__list_directory",
+      "mcp__filesystem__edit_file"
     ]
   },
   "enabledMcpjsonServers": [
