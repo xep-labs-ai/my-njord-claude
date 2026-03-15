@@ -128,6 +128,23 @@ Future resource types should extend the same architectural pattern rather than i
 
 ---
 
+## Model Organization
+
+All domain models live in `apps/billing/models/` as a Python package. Organize into sub-modules:
+
+- `apps/billing/models/billing_accounts.py` — BillingAccountBase, BillingAccount
+- `apps/billing/models/pricing.py` — PriceList, ResourcePrice
+- `apps/billing/models/resources.py` — ResourceModel (abstract), StorageHotel, VirtualMachine
+- `apps/billing/models/snapshots.py` — StorageHotelDailyQuota, VirtualMachineDailyUsage
+- `apps/billing/models/invoices.py` — Invoice, InvoiceLine, InvoiceDailyCost
+- `apps/billing/models/__init__.py` — exports all models
+
+Ingestion event models (QuotaIngestionEvent, VirtualMachineUsageIngestionEvent) live in `apps/ingest/models/`.
+
+Resource types (StorageHotel, VirtualMachine) do NOT get their own apps — they live in `apps/billing/`.
+
+---
+
 ## Internal Code Layers
 
 The codebase should remain simple, explicit, and testable.
