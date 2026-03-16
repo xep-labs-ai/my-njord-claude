@@ -279,6 +279,7 @@ Use this table to minimize context loading and improve implementation accuracy.
 | Update financial rounding/pricing behavior | `BILLING.md` | `TESTING.md`, `PROJECT.md` | `django-testing-pattern` |
 | Update developer commands or tooling docs | `DEVELOPER_TOOLING_AND_ENVIRONMENT.md` | | none |
 | Write or update Claude-facing docs | relevant target doc | `PROJECT.md`, `CODING_RULES.md` | none |
+| Resource status transitions | `004-resource-api.prp.md` | `002-resource-models.prp.md`, `TESTING.md` | none |
 | Project orientation / first-time understanding | `PROJECT.md` | `docs/PRP/000-system-overview.prp.md` | none |
 
 If multiple tasks are involved, load only the docs required for the current subtask.

@@ -19,7 +19,7 @@ This document contains implementation constraints, not architectural explanation
 ## Do not read this document when
 - Understanding the system domain (see PROJECT.md)
 - Understanding architecture (see ARCHITECTURE.md)
-- Implementing REST endpoints (see API.md)
+- Implementing non-billing REST endpoints (see API.md). For billing-related endpoints (invoice generation, finalization, pricing), also read this document for financial safety rules.
 - Writing tests (see TESTING.md)
 - Understanding billing rules (see BILLING.md)
 

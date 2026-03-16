@@ -483,9 +483,11 @@ Expected behavior with autofill:
 
 ### StorageHotel example template
 
-Scenario: SH-25 — Multiple gaps pick the correct last known quota for each missing segment  
-Period: 2026-01-01 to 2026-01-12  
-Resource: storage-hotel-01 (KB)
+Scenario: SH-25 — Multiple gaps pick the correct last known quota for each missing segment
+Period: 2026-01-01 to 2026-01-12
+Resource: storage-hotel-01
+
+Note: Quota values in this template are given in the billing unit (TB) for readability, not in the raw ingestion unit (KB/KiB). Actual test data would use raw ingestion values that normalize to these TB amounts.
 
 Prices:
 
@@ -529,8 +531,8 @@ Line total (full precision):
 - (4 × 15 × 400 / 365)
 - = 162.1917808219178082...
 
-Line total (rounded): 162.19  
-Invoice total: 162.19
+Line total (full precision): 162.1917808219178082...
+Invoice `total_amount` (rounded to 2dp): 162.19
 
 ---
 
@@ -564,7 +566,9 @@ Expected behavior:
 
 Scenario: SH-26 -- Mid-period discount-threshold crossing
 Period: 2026-01-01 to 2026-01-10
-Resource: storage-hotel-01 (KB)
+Resource: storage-hotel-01
+
+Note: Quota values in this template are given in the billing unit (TB) for readability, not in the raw ingestion unit (KB/KiB). Actual test data would use raw ingestion values that normalize to these TB amounts.
 
 Prices:
 
@@ -596,8 +600,48 @@ Line total (full precision):
 - = 65.7534246575342465... + 54.7945205479452050...
 - = 120.5479452054794515...
 
-Line total (rounded): 120.55
-Invoice total: 120.55
+Invoice `total_amount` (rounded to 2dp): 120.55
+
+---
+
+## Template RT-27 — Discount threshold exact boundary (usage == threshold)
+
+### Intent
+
+Explicitly confirms that when daily usage exactly equals the discount threshold, the discount price applies. The `>=` operator means the threshold boundary is inclusive on the discount side.
+
+### Generic pattern
+
+Period: single day or short range
+
+Daily data: usage exactly equals `discount_threshold_quantity`
+
+Price: normal price and discount price with a threshold equal to the daily usage
+
+Expected behavior:
+
+- the discount price is applied (not the normal price)
+- `InvoiceDailyCost.metadata.resolved_prices` shows `"discount_applied": true`
+
+### StorageHotel example template
+
+Scenario: SH-27 -- Usage exactly at discount threshold
+Period: 2026-01-01 to 2026-01-01
+Resource: storage-hotel-01
+
+Prices:
+
+- P1: effective Jan 1+: normal=500, discount=400, threshold=10 TB
+
+Quota records:
+
+- Jan 1: 10 TB (exactly at threshold)
+
+Expected behavior:
+
+- discount price (400) applies because 10 >= 10
+- daily cost = 10 x 400 / 365 = 10.9589041095890410...
+- `discount_applied = true`
 
 ---
 

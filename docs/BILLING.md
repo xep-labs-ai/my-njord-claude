@@ -246,6 +246,8 @@ Non-billable days include:
 
 Auditability for the active billing window and billed day count may be preserved in invoice-line or invoice-level metadata.
 
+**Clarification:** This rule applies to days outside the resource's billing window (`active_from`/`active_to`). It is distinct from billable days where snapshot data is missing -- under `force=true`, those days produce a zero-cost `InvoiceDailyCost` row with `autofilled=true`. See Force Mode behavior.
+
 ---
 
 ## Zero-Billable-Day Exclusion
@@ -592,13 +594,15 @@ A matching finalized invoice must block regeneration entirely (finalized invoice
 
 A matching draft is replaced atomically when `force=true`.
 
+**v1 limitation — cross-scope double-billing risk:** v1 does not prevent the same resource from appearing in multiple invoices for the same period under different selection scopes. Operators must not generate invoices with overlapping resource selections for the same billing account and period. Finalization is the operational safeguard — do not finalize overlapping invoices.
+
 ---
 
 ## Invoice Flags
 
 `incomplete` is a dedicated `BooleanField` on the `Invoice` model (not metadata-only). It is exposed as a top-level field in API responses and is directly filterable in list queries. `Invoice.metadata` may still contain `missing_data_summary` and supporting details when `incomplete=true`.
 
-`provisional` is stored in `Invoice.metadata`. It is available in detail and generate responses but intentionally excluded from the list response in v1.
+`provisional` is stored in `Invoice.metadata`. It is available in detail and generate responses but excluded from the list response because `metadata` is excluded from the list serializer as a whole -- no separate exclusion logic is needed for `provisional`.
 
 ---
 
