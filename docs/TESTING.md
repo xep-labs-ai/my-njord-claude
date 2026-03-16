@@ -483,7 +483,7 @@ Run the smallest relevant subset first.
 
 Example:
 
-pytest tests/services/test_invoice_generation.py
+pytest apps/billing/tests/test_invoice_generation.py
 
 
 Before committing:

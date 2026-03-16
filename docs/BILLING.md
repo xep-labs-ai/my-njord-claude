@@ -164,10 +164,11 @@ A resource is billable for a given day only if:
 
 - it is a concrete resource derived from `ResourceModel`
 - `billing_account_id` is not null
-- `billing_account.make_invoice = True`
 - `active_from <= day`
 - `active_to IS NULL OR day <= active_to`
 - it is included by the invoice selection
+
+Note: `billing_account.make_invoice = True` is a pre-condition checked before resource evaluation (see Pre-flight Validation), not a per-day condition.
 
 Resources that are:
 
@@ -242,6 +243,18 @@ Non-billable days include:
 - any day outside the resource's billable window per the Billable Resource Rule
 
 Auditability for the active billing window and billed day count may be preserved in invoice-line or invoice-level metadata.
+
+---
+
+## Zero-Billable-Day Exclusion
+
+Resources with zero billable days in the selected period produce no `InvoiceLine` and no `InvoiceDailyCost` rows. They are treated as if they were not selected.
+
+---
+
+## v1 Limitation: Billing Account Resolution
+
+In v1, the billing engine uses the resource's **current** `billing_account` at invoice-generation time. Historical assignment is not tracked. If a resource's `billing_account` is changed after historical usage has been captured, invoice generation for past uninvoiced periods will use the current `billing_account`, not historical ownership. Previously generated draft invoices for affected periods should be regenerated before finalization. Already finalized invoices remain immutable.
 
 ---
 
@@ -399,28 +412,48 @@ For multi-dimension resources (e.g., VirtualMachine), the per-dimension breakdow
 - `InvoiceDailyCost.daily_cost` = sum of all per-dimension daily costs for that resource on that day
 - `InvoiceLine.total_cost` = sum of `InvoiceDailyCost.daily_cost` across all billed days for that resource
 
-Required metadata shape for multi-dimension resources like VirtualMachine:
+**Authoritative `InvoiceDailyCost.metadata` shape** (nested, keyed by pricing dimension):
+
+Required fields on every `InvoiceDailyCost` row:
+
+- `normalized_usage` — object keyed by pricing dimension
+- `resolved_prices` — object keyed by pricing dimension, each entry contains `price_per_unit_year`, `currency`, `discount_applied`
+- `dimension_costs` — object keyed by pricing dimension, each value is the per-dimension daily cost as a Decimal string
+- `autofilled` — boolean
+
+StorageHotel example:
 
 ```json
 {
-  "normalized_usage": {
-    "cpu_count": "8",
-    "ram_gb": "32",
-    "disk_gb": "500"
-  },
+  "normalized_usage": {"quota_tb": "120"},
   "resolved_prices": {
-    "cpu_count": {"price_per_unit_year": "300", "currency": "NOK"},
-    "ram_gb": {"price_per_unit_year": "40", "currency": "NOK"},
-    "disk_gb": {"price_per_unit_year": "2", "currency": "NOK"}
+    "quota_tb": {"price_per_unit_year": "400", "currency": "NOK", "discount_applied": true}
   },
-  "dimension_costs": {
-    "cpu_count": "6.58",
-    "ram_gb": "3.51",
-    "disk_gb": "2.74"
-  },
+  "dimension_costs": {"quota_tb": "131.51"},
   "autofilled": false
 }
 ```
+
+VirtualMachine example:
+
+```json
+{
+  "normalized_usage": {"cpu_count": "8", "ram_gb": "32", "disk_gb": "500"},
+  "resolved_prices": {
+    "cpu_count": {"price_per_unit_year": "300", "currency": "NOK", "discount_applied": false},
+    "ram_gb": {"price_per_unit_year": "40", "currency": "NOK", "discount_applied": false},
+    "disk_gb": {"price_per_unit_year": "2", "currency": "NOK", "discount_applied": false}
+  },
+  "dimension_costs": {"cpu_count": "6.58", "ram_gb": "3.51", "disk_gb": "2.74"},
+  "autofilled": false
+}
+```
+
+**`daily_cost` field meaning:**
+
+`InvoiceDailyCost.daily_cost` = sum of all values in `metadata.dimension_costs` for that row.
+
+`InvoiceLine.total_cost` = sum of `InvoiceDailyCost.daily_cost` across all billed days for that resource.
 
 ---
 
@@ -489,8 +522,8 @@ Use `Decimal` internally.
 
 Rounding happens at the invoice level only:
 
-- `InvoiceDailyCost` rows remain at full `Decimal` precision
-- `InvoiceLine.total_cost` remains at full `Decimal` precision (full-precision per-resource cost)
+- `InvoiceDailyCost.daily_cost` uses 10 decimal places (`decimal_places=10`)
+- `InvoiceLine.total_cost` uses 10 decimal places (`decimal_places=10`)
 - `Invoice.total_amount` is rounded to 2 decimal places NOK (customer-visible total)
 
 Rounding process:
@@ -529,11 +562,15 @@ The rounding policy must be consistent across resource types.
 - missing day -> continue only according to implementation policy
 - invoice metadata marks result incomplete
 
+### `force=false` + `autofill_missing_days=true` + no prior snapshot
+
+- The **entire invoice generation fails** (fatal error -- not a per-resource skip)
+
 ### `force=true` + `autofill_missing_days=true`
 
 - autofill takes priority first
 - autofill fills what it can
-- if no prior valid billing state exists, resource still fails unless force-policy explicitly allows partial continuation
+- if no prior valid billing state exists: bill the resource-day at **zero cost**, record the condition in `missing_data_summary`, mark the invoice `incomplete=true`
 
 ---
 

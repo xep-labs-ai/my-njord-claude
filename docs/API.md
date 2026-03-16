@@ -181,6 +181,38 @@ Example:
 
 ---
 
+## HTTP Status Code Distinction: 400 vs 422
+
+- **400 Bad Request**: malformed request (missing required JSON field, invalid date format, invalid parameter value)
+- **422 Unprocessable Entity**: valid request but billing engine / domain logic fails
+
+Use 400 for request validation. Use 422 for billing domain failures.
+
+---
+
+## Defined Error Codes
+
+### 409 Conflict codes
+
+| Code | Context | Meaning |
+|---|---|---|
+| `duplicate_draft_invoice` | Invoice generate | A matching draft invoice already exists |
+| `duplicate_finalized_invoice` | Invoice generate | A matching finalized invoice already exists |
+| `invoice_already_finalized` | Invoice finalize | Attempt to operate on a finalized invoice |
+| `duplicate_snapshot` | Snapshot ingestion | A snapshot for this resource and date already exists |
+| `price_row_already_closed` | ResourcePrice set-effective-to | Attempt to modify an already-closed price row |
+
+### 422 Unprocessable Entity codes
+
+| Code | Context | Meaning |
+|---|---|---|
+| `no_billable_resources` | Invoice generate | Selection produced no billable resources for the period |
+| `missing_snapshot` | Invoice generate | Resource has a missing day with no prior state and `force=false` |
+| `missing_pricing` | Invoice generate | No valid `ResourcePrice` found for a resource on a billed day |
+| `billing_account_not_billable` | Invoice generate | `make_invoice=false` on the billing account |
+
+---
+
 ## Schema Generation
 
 All endpoints must work correctly with `drf-spectacular`.
