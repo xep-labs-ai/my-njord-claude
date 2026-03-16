@@ -25,6 +25,8 @@ Proposal: **(a)** for v1. A cross-invoice check would require joining across mul
 
 **Decision:**
 
+Accept proposal a
+
 ---
 
 ### H-2. Snapshot ingestion on RETIRED or soft-deleted resources — behavior undefined
@@ -43,6 +45,33 @@ Proposal: **(a)**. RETIRED resources are the normal end-of-life state and late-a
 
 **Decision:**
 
+Answer is the following block: 
+
+```
+Choose option (a).
+
+Decision:
+
+- snapshot ingestion for RETIRED resources is allowed in v1
+- snapshot ingestion for soft-deleted resources is rejected
+
+Reasoning:
+
+- RETIRED is the normal end-of-life state, and delayed delivery of historical snapshots is a legitimate operational scenario
+- billing correctness is controlled by the snapshot date and the resource's billing window, not only by the current lifecycle state
+- soft-deleted resources represent administrative removal and should not remain valid ingestion targets
+
+Recommended rule:
+
+- if a resource is RETIRED, ingestion may still be accepted for a valid historical snapshot date
+- if a resource is soft-deleted, ingestion must be rejected
+- future-dated snapshots remain invalid regardless of status
+
+Documentation update:
+
+`004-resource-api.prp.md` should explicitly state that RETIRED resources may accept historical delayed snapshots, while soft-deleted resources are not valid ingestion targets in v1.
+```
+
 ---
 
 ## MEDIUM
@@ -54,6 +83,28 @@ In `003-invoice-api.prp.md` detail response, `resource_snapshot.name` is shown a
 Proposal: update the `resource_snapshot.name` in `003-invoice-api.prp.md` examples to show a realistic resource name (e.g., `"storage-primary"` for StorageHotel, `"vm-prod-001"` for VirtualMachine). The description fallback `"StorageHotel #101"` should only appear in the `description` field.
 
 **Decision:**
+
+Answer is the following block: 
+
+```
+Accept the proposal.
+
+Decision:
+
+Update the `resource_snapshot.name` examples in `003-invoice-api.prp.md` to show realistic resource names (for example `"storage-primary"` or `"vm-prod-001"`). The fallback string `"StorageHotel #101"` should appear only in the `description` field.
+
+Reasoning:
+
+- `resource_snapshot` stores the actual resource attributes captured at billing time
+- `InvoiceLine.description` is a constructed human-readable label that may fall back to `{ResourceType} #{resource_id}` when the resource name is blank
+- showing the fallback string inside `resource_snapshot.name` conflates these two concepts and could lead to incorrect implementations
+
+Documentation update:
+
+Ensure the examples clearly distinguish between:
+- `resource_snapshot.name` → real resource name
+- `description` → generated display string that may use the fallback format
+```
 
 ---
 
@@ -69,6 +120,8 @@ Proposal: **(a)**. The caller needs to know immediately what was generated — r
 
 **Decision:**
 
+Accept proposal a
+
 ---
 
 ### M-3. StorageHotel PRP "Invoice expectations" section omits `resource_snapshot`
@@ -79,6 +132,26 @@ Proposal: add `resource_snapshot` to the example JSON in the "Invoice expectatio
 
 **Decision:**
 
+Answer is the following block:
+
+```
+Accept the proposal.
+
+Decision:
+
+Update the example JSON in the "Invoice expectations" section of `storage-hotel.prp.md` to include `resource_snapshot`.
+
+Reasoning:
+
+- `resource_snapshot` is a required audit field for invoice snapshots
+- the current example omits it, which could lead implementers to believe it is optional
+- examples should reflect the full required metadata structure whenever possible
+
+Action:
+
+Add `resource_snapshot` to the example JSON in the "Invoice expectations" section, using the canonical schema already defined earlier in the PRP. Optionally add a short note clarifying that the example includes the required snapshot defined above.
+```
+
 ---
 
 ### M-4. `003-invoice-api.prp.md` StorageHotel InvoiceLine metadata missing top-level `quota_unit`
@@ -88,6 +161,8 @@ Round 10 L-8 decided that `quota_unit` and `provisioner` intentionally appear bo
 Proposal: add `"quota_unit": "KIB"` as a top-level key in the StorageHotel `InvoiceLine.metadata` example in `003-invoice-api.prp.md`.
 
 **Decision:**
+
+Accept the proposal.
 
 ---
 
@@ -101,6 +176,8 @@ Proposal: add a note to `004-resource-api.prp.md` and `002-resource-models.prp.m
 
 **Decision:**
 
+Accept the proposal
+
 ---
 
 ### M-6. `resource_id` type in fingerprint canonical JSON — string or integer?
@@ -110,6 +187,28 @@ The fingerprint canonical payload schema in `001-billing-engine.prp.md` shows `"
 Proposal: explicitly state in `001-billing-engine.prp.md` that `resource_id` in the canonical fingerprint JSON is serialized as an **integer** (not a string), consistent with its model type. Update the schema example if it currently shows it as a string.
 
 **Decision:**
+
+Answer is the following block:
+
+```
+Accept the proposal.
+
+Decision:
+
+`resource_id` in the canonical fingerprint JSON must be serialized as an integer, not a string.
+
+Reasoning:
+
+- the selection fingerprint must be deterministic
+- JSON values `"101"` and `101` produce different SHA-256 hashes
+- since `resource_id` is defined as a `PositiveIntegerField` in the data model, the canonical JSON representation should preserve that numeric type
+
+Action:
+
+Update the canonical payload schema in `001-billing-engine.prp.md` so that `resource_id` appears as an integer in all examples.
+
+Also add a canonicalization rule stating that numeric identifiers must be serialized as JSON numbers, not strings.
+```
 
 ---
 
@@ -124,6 +223,8 @@ Proposal: add a clarifying note to the Non-billable Days Rule section in `BILLIN
 
 **Decision:**
 
+Accept the proposal
+
 ---
 
 ## LOW
@@ -135,6 +236,8 @@ The discount rule uses `usage >= threshold → discounted price`. This is consis
 Proposal: add a note or small test scenario to `TESTING_TEMPLATES.md` explicitly confirming that `usage == threshold` receives the discount price (`>=` operator). This can be a brief note on RT-26 or a new micro-scenario RT-27.
 
 **Decision:**
+
+Accept the proposal
 
 ---
 
@@ -148,6 +251,8 @@ Two options:
 
 **Decision:**
 
+Accept proposal b
+
 ---
 
 ### L-3. Snapshot model naming — template says `DailyUsage`, StorageHotel uses `DailyQuota`
@@ -157,6 +262,8 @@ Two options:
 Proposal: add a note to `_resource-template.prp.md` that the `DailyUsage` suffix is a convention suggestion. Resource-specific suffixes (e.g., `DailyQuota`, `DailyCapacity`) are acceptable when the domain term is clearer.
 
 **Decision:**
+
+Accept the proposal
 
 ---
 
@@ -168,6 +275,8 @@ Proposal: add a row to the CLAUDE.md routing table: "Resource status transitions
 
 **Decision:**
 
+Accept the proposal
+
 ---
 
 ### L-5. StorageHotel/VM field lists say "in addition to inherited" but then re-list inherited fields
@@ -177,6 +286,8 @@ Proposal: add a row to the CLAUDE.md routing table: "Resource status transitions
 Proposal: change the header from "in addition to inherited" to "all fields (including inherited)" to match the actual listing approach, removing the contradiction.
 
 **Decision:**
+
+Accept the proposal
 
 ---
 
@@ -188,6 +299,8 @@ Proposal: add a brief note to `virtual-machine.prp.md` or `004-resource-api.prp.
 
 **Decision:**
 
+Accept the proposal
+
 ---
 
 ### L-7. Finalize endpoint 409 says "idempotency conflict" but the behavior is not idempotent
@@ -197,6 +310,8 @@ Proposal: add a brief note to `virtual-machine.prp.md` or `004-resource-api.prp.
 Proposal: remove the "(idempotency conflict)" parenthetical. The 409 is a state conflict, not an idempotency mechanism. Or change the behavior to return 200 with the already-finalized invoice (true idempotency). Simpler fix: just remove the misleading comment.
 
 **Decision:**
+
+Accept the proposal
 
 ---
 
@@ -208,6 +323,8 @@ Proposal: change the resource label from `(KB)` to `(TB pricing)` or remove the 
 
 **Decision:**
 
+Accept the proposal
+
 ---
 
 ### L-9. `provisional` exclusion note in BILLING.md redundant with `metadata` exclusion
@@ -217,6 +334,8 @@ Proposal: change the resource label from `(KB)` to `(TB pricing)` or remove the 
 Proposal: update the note in `BILLING.md` to: "`provisional` is excluded from the list response because `metadata` is excluded from the list serializer as a whole — no separate exclusion logic is needed for `provisional`."
 
 **Decision:**
+
+Accept the proposal
 
 ---
 
@@ -228,6 +347,8 @@ Proposal: soften the exclusion to: "Do not read this document when: implementing
 
 **Decision:**
 
+Accept the proposal
+
 ---
 
 ### L-11. API response examples show `total_cost` with 2 decimal places but the field is 10
@@ -237,6 +358,8 @@ Proposal: soften the exclusion to: "Do not read this document when: implementing
 Proposal: either update the examples to show full precision (e.g., `"1500.5000000000"`) or add a note that line-level costs in examples are simplified and actual values use 10 decimal places.
 
 **Decision:**
+
+Accept the proposal that suggest to update the examples to show full precision
 
 ---
 
@@ -255,6 +378,8 @@ Proposal: update `_resource-template.prp.md` to add placeholder sections for eac
 
 **Decision:**
 
+Accept the proposal
+
 ---
 
 ### L-13. RT-25 "Line total (rounded)" label is misleading — rounding applies to invoice total, not line
@@ -269,6 +394,8 @@ Proposal: change "Line total (rounded): 162.19" to remove the "(rounded)" qualif
 
 **Decision:**
 
+Accept the proposal
+
 ---
 
 ### L-14. `Invoice.metadata` — `selection_scope` listed as both a top-level field and a metadata key
@@ -278,5 +405,7 @@ Proposal: change "Line total (rounded): 162.19" to remove the "(rounded)" qualif
 Proposal: clarify in `002-resource-models.prp.md` that `selection_scope` is a top-level field and does NOT need to be duplicated in `Invoice.metadata`. Remove it from the metadata list, or if it must remain for snapshot completeness, add an explicit note like the one added for `autofilled`.
 
 **Decision:**
+
+Accept the proposal
 
 ---
