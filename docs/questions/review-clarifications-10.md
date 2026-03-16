@@ -5,6 +5,34 @@ Edit each `**Decision:**` line with your answer.
 
 ---
 
+## CRITICAL
+
+### C-1. `InvoiceDailyCost.autofilled` — promote from metadata key to dedicated `BooleanField`
+
+Currently `autofilled` is documented as a required key inside `InvoiceDailyCost.metadata`. A comprehensive metadata field audit (all 13 fields across both `InvoiceLine.metadata` and `InvoiceDailyCost.metadata`) found this is the only field that warrants promotion to a real database column.
+
+Reasoning for promotion:
+- **Universal** — present on every `InvoiceDailyCost` row regardless of resource type (unlike `quota_unit`, `provisioner`, `normalized_usage`, etc. which are resource-type-specific)
+- **Required** — not optional or conditional, unlike `source_snapshot_date` or `missing_data_flags`
+- **Filter target** — natural queries: "all autofilled daily costs for this invoice", "count of autofilled days per resource", "invoices with any autofilled data"
+- **Aggregation target** — `COUNT(*) WHERE autofilled = true` per invoice is a data quality check
+- **Precedent** — directly mirrors why `Invoice.incomplete` was promoted: "to support direct filtering in list queries"
+
+All other metadata fields (12 of 13) should remain in JSON:
+- `billing_dimensions`, `total_quantity_by_dimension`, `normalized_usage`, `resolved_prices`, `dimension_costs` — polymorphic keys that vary per resource type; columns would require nullable per-dimension fields growing with every new resource type
+- `resource_snapshot`, `quota_unit`, `provisioner` — point-in-time audit snapshots; query path uses the existing `resource_type + resource_id` columns
+- `source_snapshot_date`, `missing_data_flags`, `price_summary`, `resource_snapshot` (daily-cost level) — conditional, optional, or unspecified-shape diagnostics
+
+Proposed changes:
+- Add `autofilled = BooleanField(default=False)` to the `InvoiceDailyCost` model field list in `002-resource-models.prp.md`
+- Remove `autofilled` from the "required metadata keys" list — it moves to the model field list
+- Keep `autofilled` in metadata JSON as well (for audit self-containment), with a note that the column is the queryable source of truth
+- Add a partial index recommendation: `CREATE INDEX ... WHERE autofilled = true`
+
+**Decision:** Accept — add `autofilled` as `BooleanField(default=False)` to `InvoiceDailyCost`, keep it in metadata too for audit self-containment, add partial index recommendation to `002-resource-models.prp.md`.
+
+---
+
 ## HIGH
 
 ### H-1. Advisory lock key scope narrower than uniqueness constraint
