@@ -17,7 +17,7 @@ Two options:
 - **(a)** Make `active_from` nullable at the model level (`null=True, blank=True`). Resources that go `UNASSIGNED → RETIRED` never get a value. Update `002-resource-models.prp.md` accordingly.
 - **(b)** Require a valid `active_from` even for mistakenly created resources. For `UNASSIGNED → RETIRED`, set `active_to = active_from` (same day, zero billable days). Round 8 M-4 must be corrected.
 
-**Decision:**
+**Decision:** Make 'UNASSIGNED → RETIRED' not possible instead. Add that to the documentation.
 
 ---
 
@@ -34,7 +34,7 @@ Since `make_invoice=False` is a pre-flight check that happens before any resourc
 
 Proposal: 422. The check is on a valid request where the billing account is intentionally configured not to be billed — that is a domain state, not a malformed request. Fix `002-resource-models.prp.md`.
 
-**Decision:**
+**Decision:** Accept the proposal
 
 ---
 
@@ -51,6 +51,28 @@ Two options:
 - **(b)** Keep it in metadata only. Expose it as a serializer-computed property (read-only). Not directly filterable via queryset.
 
 **Decision:**
+
+Answer is the following block:
+
+```
+Choose option (a).
+
+Decision:
+
+Add `incomplete` as a dedicated `BooleanField` on the `Invoice` model.
+
+Reasoning:
+
+- `incomplete` is now a first-class invoice state flag and is exposed as a top-level field in API responses
+- it should be directly filterable in the invoice list endpoint
+- storing it only inside `metadata` would make filtering and querying awkward and would weaken the alignment between the API contract and the model
+
+Recommended design:
+
+- `Invoice.incomplete` is a real BooleanField, default `false`
+- it is exposed as a top-level field in generate, list, detail, and finalize responses
+- `Invoice.metadata` may still contain supporting details such as `missing_data_summary` and other reasons explaining why the invoice is incomplete|
+```
 
 ---
 
@@ -71,6 +93,40 @@ Proposal: define the canonical `resource_snapshot` schema for each resource type
 
 **Decision:**
 
+Answer is the following block:
+
+```
+Accept the proposal.
+
+Decision:
+
+The canonical `resource_snapshot` schema must be defined explicitly in each resource PRP.
+
+Reasoning:
+
+- `resource_snapshot` is part of the audit contract and cannot remain loosely defined
+- the exact identifying fields are resource-specific, so they belong in the resource PRPs rather than only in the shared billing-engine PRP
+- this ensures implementers know exactly which fields must be frozen at invoice generation time
+
+Recommended schemas:
+
+StorageHotel:
+- `id`
+- `name`
+- `filesystem_identifier`
+- `quota_unit`
+
+VirtualMachine:
+- `id`
+- `name`
+- `provisioner`
+
+Documentation rule:
+
+- `001-billing-engine.prp.md` should keep the general requirement that a frozen identifying snapshot is required
+- each resource PRP should define the exact required `resource_snapshot` schema for that resource type
+```
+
 ---
 
 ### H-4. `filesystem_identifier` in StorageHotel InvoiceLine metadata — flat key or inside `resource_snapshot`?
@@ -90,6 +146,27 @@ Proposal: option (a). Keep `filesystem_identifier` inside `resource_snapshot` on
 
 **Decision:**
 
+Answer is the following block:
+```
+Choose option (a).
+
+Decision:
+
+`filesystem_identifier` must live inside `resource_snapshot`, not as a flat top-level key in `InvoiceLine.metadata`.
+
+Reasoning:
+
+- `filesystem_identifier` is part of the frozen identifying snapshot of the StorageHotel resource
+- `resource_snapshot` is the canonical place for frozen identifying fields
+- duplicating the same value both inside and outside `resource_snapshot` would be redundant and increase the risk of inconsistency
+
+Documentation update:
+
+- correct the `003-invoice-api.prp.md` detail response example
+- keep `filesystem_identifier` inside `resource_snapshot`
+- do not expose it as a separate flat metadata key
+```
+
 ---
 
 ### H-5. Discount cross-field validation — null `discount_threshold` with non-null `discount_price` (or vice versa)
@@ -105,6 +182,8 @@ Proposal: enforce as a cross-field validation rule at the service and model leve
 
 **Decision:**
 
+Accept the proposal.
+
 ---
 
 ### H-6. Autofill + no prior snapshot + multiple resources — which resources fail?
@@ -118,6 +197,8 @@ The phrase "not a per-resource skip" implies the entire transaction fails. But t
 Proposal: confirm that a single resource failing the no-prior-snapshot check under `force=false` causes the **entire invoice transaction to be rolled back** — no invoice is created, no lines persist. Add a multi-resource example to `BILLING.md` explicitly showing this behavior.
 
 **Decision:**
+
+Accept the proposal.
 
 ---
 
@@ -135,6 +216,26 @@ Two options:
 
 **Decision:**
 
+Answer is the following block:
+
+```
+Choose option (a).
+
+Decision:
+
+`provisional` is intentionally omitted from the invoice list response in v1.
+
+Reasoning:
+
+- the list endpoint is a reduced summary serializer
+- `incomplete` is the more important list-level operational flag and is useful for filtering
+- `provisional` is a detail-level concern and is better exposed through the full invoice detail response, where the surrounding metadata is also available
+
+Documentation update:
+
+`003-invoice-api.prp.md` should explicitly state that `provisional` is intentionally excluded from the list response in v1.
+```
+
 ---
 
 ### M-2. VirtualMachine has no natural key / uniqueness constraint
@@ -147,6 +248,32 @@ Two options:
 - **(b)** Explicitly document that VirtualMachine deduplication is the caller's responsibility. The system treats every record as a distinct resource regardless of `name`/`provisioner` values.
 
 **Decision:**
+
+Answer is the following block:
+
+```
+Choose option (b).
+
+Decision:
+
+VirtualMachine deduplication is the caller's responsibility in v1.
+
+The system treats each VirtualMachine record as a distinct billable resource regardless of whether another record has the same `name` and `provisioner`.
+
+Reasoning:
+
+- VirtualMachine currently has no strong natural key defined in the PRPs
+- `name` is not reliable enough to be a safe uniqueness constraint
+- `provisioner` does not make the pair unique in a robust way
+- adding a weak uniqueness rule would risk false collisions without truly solving resource identity
+
+Documentation update:
+
+The VirtualMachine PRP should explicitly state that:
+- there is no natural-key uniqueness constraint in v1 beyond the primary key
+- callers and ingestion workflows are responsible for avoiding duplicate VM creation
+- duplicate VM rows, if created, are treated as separate billable resources
+```
 
 ---
 
@@ -164,6 +291,8 @@ Proposal: option (a)/(c) — zero is valid and produces zero-cost billing rows. 
 
 **Decision:**
 
+Accept the proposal.
+
 ---
 
 ### M-4. `cpu_count` type coercion — `PositiveIntegerField` stored, `Decimal` used in billing
@@ -177,6 +306,8 @@ The normalization rules say `cpu_count` is `1:1, no conversion` but do not docum
 Proposal: add an explicit note to `virtual-machine.prp.md` and `001-billing-engine.prp.md` that `cpu_count` is stored as `PositiveIntegerField` but coerced to `Decimal` during normalization for billing calculations. The coercion is `Decimal(str(cpu_count))`.
 
 **Decision:**
+
+Accept the proposal.
 
 ---
 
@@ -199,6 +330,8 @@ Proposal:
 
 **Decision:**
 
+Accept the proposal.
+
 ---
 
 ### M-6. `deleted_at` not defined on abstract `ResourceModel`
@@ -212,6 +345,8 @@ Proposal: add `deleted_at` to the `ResourceModel` abstract field list, and remov
 
 **Decision:**
 
+Aceept the proposal.
+
 ---
 
 ### M-7. `active_from`/`active_to` missing from `_resource-template.prp.md`
@@ -224,6 +359,8 @@ An implementer using this template to add a new resource type would miss the cor
 Proposal: add `active_from` and `active_to` to the template PRP field list with their types and constraints.
 
 **Decision:**
+
+Accept the proposal.
 
 ---
 
@@ -242,6 +379,52 @@ Proposal:
 
 **Decision:**
 
+Answer is the following block:
+
+```
+Accept the proposal.
+
+Decision:
+
+- `003-invoice-api.prp.md` must include concrete error response examples using the structured error format defined in `API.md`
+- at minimum, add one 409 example and one 422 example
+- `API.md` should replace `missing_quota_days` with a real defined error code such as `missing_snapshot`
+
+Reasoning:
+
+- HTTP status codes alone are not enough; implementers need the expected response body format
+- the shared structured error format from `API.md` should be the authoritative contract across endpoints
+- endpoint PRPs should show concrete examples using that shared format
+- undefined example codes such as `missing_quota_days` create confusion and should be replaced with a code that actually exists in the documented error vocabulary
+
+Recommended examples:
+
+409:
+{
+  "code": "duplicate_invoice",
+  "message": "A draft invoice already exists for the same billing account, billing period, and billing selection.",
+  "details": {
+    "billing_account": 123,
+    "period_start": "2026-01-01",
+    "period_end": "2026-01-31",
+    "selection_scope": "all_resources"
+  }
+}
+
+422:
+{
+  "code": "missing_snapshot",
+  "message": "Invoice generation failed because one or more required billing snapshots were missing.",
+  "details": {
+    "resource_type": "storage_hotel",
+    "resource_id": 101,
+    "missing_dates": ["2026-01-16", "2026-01-17", "2026-01-18"]
+  }
+}
+
+One extra cleanup I would recommend is to create a short shared error-code table in API.md, so codes like duplicate_invoice, missing_snapshot, and selection_ambiguous are defined once and reused consistently.
+```
+
 ---
 
 ### M-9. `InvoiceDailyCost` no FK to `InvoiceLine` — service-layer integrity guarantee undocumented
@@ -255,6 +438,30 @@ The transaction boundary requirement in `ARCHITECTURE.md` provides rollback-on-f
 Proposal: add an explicit invariant to `001-billing-engine.prp.md` or `BILLING.md`: "The invoice generation service must guarantee that for every `InvoiceDailyCost` row created, a corresponding `InvoiceLine` exists for the same `(invoice, resource_type, resource_id)` tuple, and vice versa. This invariant is enforced by the transaction boundary, not the database schema."
 
 **Decision:**
+
+Answer is the following block:
+
+```
+Accept the proposal.
+
+Decision:
+
+Add an explicit service-level invariant to `001-billing-engine.prp.md` stating that invoice generation must preserve logical integrity between `InvoiceLine` and `InvoiceDailyCost`, even though no direct FK exists between them.
+
+Recommended invariant:
+
+Invoice generation must guarantee tuple-level consistency for `(invoice, resource_type, resource_id)`.
+
+For every such tuple in a committed invoice:
+- if one or more `InvoiceDailyCost` rows exist, exactly one corresponding `InvoiceLine` must exist
+- if an `InvoiceLine` exists, it must aggregate all `InvoiceDailyCost` rows for that same tuple
+- invoice generation must run inside a transaction so partial writes cannot leave orphaned `InvoiceDailyCost` rows or unmatched `InvoiceLine` rows
+
+Reasoning:
+
+- the lack of a direct FK is an intentional modeling choice, not a relaxation of integrity requirements
+- this guarantee should be documented explicitly at the billing-service level, not only implied through a general architecture transaction note
+```
 
 ---
 
@@ -270,6 +477,35 @@ If a dedicated `config/settings/test.py` is planned, using `config.settings.dev`
 Proposal: decide now whether tests use `config.settings.dev` or a dedicated `config.settings.test`. If a test-specific settings module is planned, update `pyproject.toml` to reference it and add its creation to the bootstrapping sequence.
 
 **Decision:**
+
+Answer is the following block:
+
+```
+Choose a dedicated test settings module.
+
+Decision:
+
+Tests should use `config.settings.test`, not `config.settings.dev`.
+
+Reasoning:
+
+- test execution should be isolated from development settings
+- using `config.settings.dev` for pytest would blur the distinction between dev and test environments
+- the documented project structure already anticipates a dedicated test settings module
+- a separate test settings module makes it easier to control database, cache, email, hashing, and other test-specific behavior
+
+Required updates:
+
+- update `pyproject.toml` so pytest uses:
+  `DJANGO_SETTINGS_MODULE = "config.settings.test"`
+- if `django-stubs` / mypy settings are also being configured now, prefer pointing them to `config.settings.test` as well for consistency
+- add creation of `config/settings/test.py` to the initial bootstrapping sequence
+
+Rule:
+
+- `config.settings.dev` is for local development
+- `config.settings.test` is for automated tests
+```
 
 ---
 
@@ -287,6 +523,8 @@ Proposal: update `ARCHITECTURE.md`, `BILLING.md`, and `CODING_RULES.md` to clari
 
 **Decision:**
 
+Accept the proposal
+
 ---
 
 ## LOW
@@ -299,6 +537,8 @@ Proposal: remove `BillingAccountBase` from the `base.py` description. `billing_a
 
 **Decision:**
 
+Accept the proposal.
+
 ---
 
 ### L-2. `selection_fingerprint` exclusion — stated per-endpoint instead of once globally
@@ -309,6 +549,8 @@ Proposal: add a single global statement to `003-invoice-api.prp.md`: "`selection
 
 **Decision:**
 
+Accept the proposal
+
 ---
 
 ### L-3. Currency constraint — only NOK is valid in v1, but not formally documented
@@ -318,6 +560,8 @@ Proposal: add a single global statement to `003-invoice-api.prp.md`: "`selection
 Proposal: add an explicit v1 constraint to `BILLING.md` and `001-billing-engine.prp.md`: "All pricing in v1 uses NOK. The billing engine must validate that all resolved ResourcePrice rows for an invoice use the same currency, matching `Invoice.currency`. A mismatch is a fatal billing error."
 
 **Decision:**
+
+Accept the proposal.
 
 ---
 
@@ -330,6 +574,8 @@ Proposal: add a note to `003-invoice-api.prp.md` and `BILLING.md`: "A single-day
 
 **Decision:**
 
+Accept the proposal
+
 ---
 
 ### L-5. `total_quantity_by_dimension` key naming convention (`_days` suffix) never formally defined
@@ -341,6 +587,8 @@ Proposal: document the naming rule explicitly in `002-resource-models.prp.md`: "
 
 **Decision:**
 
+Accept the proposal
+
 ---
 
 ### L-6. No bulk ingestion endpoint noted — potential bottleneck at scale
@@ -350,6 +598,8 @@ The system overview states ~10,000 resources as expected scale and recommends ba
 Proposal: add a note in `004-resource-api.prp.md` acknowledging that single-record ingestion is a v1 constraint and that a bulk ingestion endpoint is a likely future enhancement.
 
 **Decision:**
+
+Accept the proposal
 
 ---
 
@@ -361,6 +611,8 @@ Proposal: add a template (e.g., SH-26) testing a mid-period threshold crossing: 
 
 **Decision:**
 
+Accept the proposal.
+
 ---
 
 ### L-8. CLAUDE.md routing table has no "project orientation" row
@@ -370,5 +622,7 @@ The routing table in CLAUDE.md covers task-specific scenarios but has no entry f
 Proposal: add a routing table row: "Project orientation / first-time understanding → Read `PROJECT.md` and `docs/PRP/000-system-overview.prp.md`."
 
 **Decision:**
+
+Accept the proposal.
 
 ---
