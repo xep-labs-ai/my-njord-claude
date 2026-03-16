@@ -172,10 +172,12 @@ Errors should return structured JSON with:
 Example:
 
 {
-  "code": "missing_quota_days",
-  "message": "Quota data is incomplete for the selected billing period.",
+  "code": "missing_snapshot",
+  "message": "Invoice generation failed because one or more required billing snapshots were missing.",
   "details": {
-    "storage_hotel_id": 42
+    "resource_type": "storage_hotel",
+    "resource_id": 42,
+    "missing_dates": ["2026-01-16", "2026-01-17"]
   }
 }
 

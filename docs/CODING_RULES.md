@@ -142,9 +142,10 @@ apps/<domain>/services/
 Examples of services:
 
 generate_invoice()
-recalculate_invoice()
 finalize_invoice()
 process_usage_ingestion()
+
+Note: `recalculate_invoice()` is a v2 concept. In v1, draft updates use `POST /generate` with `force=true`.
 
 Services may:
 

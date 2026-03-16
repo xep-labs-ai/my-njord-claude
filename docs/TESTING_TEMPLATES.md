@@ -534,6 +534,73 @@ Invoice total: 162.19
 
 ---
 
+## Template RT-26 — Mid-period discount-threshold crossing
+
+### Intent
+
+Verifies that when usage crosses the discount threshold within a single invoice period, days above threshold are billed at the discount price and days below threshold are billed at the normal price.
+
+### Generic pattern
+
+Period: contiguous inclusive date range
+
+Daily data exists for all days but usage values change mid-period:
+
+- first segment: usage above discount threshold
+- second segment: usage below discount threshold (or vice versa)
+
+Price:
+
+- normal price and discount price with a threshold
+
+Expected behavior:
+
+- days where usage >= threshold are billed at the discount price
+- days where usage < threshold are billed at the normal price
+- the invoice line total reflects the mixed pricing across the period
+- each `InvoiceDailyCost` row records the correct `discount_applied` value for that day
+
+### StorageHotel example template
+
+Scenario: SH-26 -- Mid-period discount-threshold crossing
+Period: 2026-01-01 to 2026-01-10
+Resource: storage-hotel-01 (KB)
+
+Prices:
+
+- P1: effective Jan 1+: normal=500, discount=400, threshold=10 TB
+
+Quota records:
+
+- Jan 1-5: 12 TB (above threshold -- discount price applies)
+- Jan 6-10: 8 TB (below threshold -- normal price applies)
+
+Reference table:
+
+| Day        | Quota (TB) | Price  | Discount? | Formula          | Daily Cost             |
+|------------|------------|--------|-----------|------------------|------------------------|
+| 2026-01-01 | 12         | 400.00 | yes       | 12 x 400 / 365  | 13.1506849315068493... |
+| 2026-01-02 | 12         | 400.00 | yes       | 12 x 400 / 365  | 13.1506849315068493... |
+| 2026-01-03 | 12         | 400.00 | yes       | 12 x 400 / 365  | 13.1506849315068493... |
+| 2026-01-04 | 12         | 400.00 | yes       | 12 x 400 / 365  | 13.1506849315068493... |
+| 2026-01-05 | 12         | 400.00 | yes       | 12 x 400 / 365  | 13.1506849315068493... |
+| 2026-01-06 | 8          | 500.00 | no        | 8 x 500 / 365   | 10.9589041095890410... |
+| 2026-01-07 | 8          | 500.00 | no        | 8 x 500 / 365   | 10.9589041095890410... |
+| 2026-01-08 | 8          | 500.00 | no        | 8 x 500 / 365   | 10.9589041095890410... |
+| 2026-01-09 | 8          | 500.00 | no        | 8 x 500 / 365   | 10.9589041095890410... |
+| 2026-01-10 | 8          | 500.00 | no        | 8 x 500 / 365   | 10.9589041095890410... |
+
+Line total (full precision):
+
+- (5 x 12 x 400 / 365) + (5 x 8 x 500 / 365)
+- = 65.7534246575342465... + 54.7945205479452050...
+- = 120.5479452054794515...
+
+Line total (rounded): 120.55
+Invoice total: 120.55
+
+---
+
 # Additional Shared Complex Tests Every Resource Should Usually Have
 
 The old StorageHotel scenarios are useful, but not sufficient alone.

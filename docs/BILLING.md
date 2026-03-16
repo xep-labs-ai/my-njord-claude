@@ -228,6 +228,8 @@ If invoice period is:
 
 then 31 daily evaluations must happen for each selected resource that is billable during those days.
 
+A single-day invoice where `period_start == period_end` is valid and produces exactly one daily evaluation.
+
 All billing date logic uses `Europe/Oslo`.
 
 ---
@@ -543,6 +545,8 @@ The rounding policy must be consistent across resource types.
 
 `InvoiceLine.currency` and `InvoiceDailyCost.currency` must match `Invoice.currency`. This is a service-layer invariant that must be maintained during invoice generation.
 
+**v1 currency constraint:** All pricing in v1 uses NOK. The billing engine must validate that all resolved `ResourcePrice` rows for an invoice use the same currency as `Invoice.currency`. A currency mismatch is a fatal billing error.
+
 ---
 
 ## Missing Data Behavior Matrix
@@ -565,6 +569,8 @@ The rounding policy must be consistent across resource types.
 ### `force=false` + `autofill_missing_days=true` + no prior snapshot
 
 - The **entire invoice generation fails** (fatal error -- not a per-resource skip)
+- This means the entire invoice transaction is rolled back. No invoice is created, no InvoiceLines persist, no InvoiceDailyCost rows persist.
+- Example: if resource A has complete data and resource B has no prior snapshot, and `force=false`, the entire invoice fails -- resource A's valid data does not produce a partial invoice.
 
 ### `force=true` + `autofill_missing_days=true`
 
@@ -586,11 +592,19 @@ A matching draft is replaced atomically when `force=true`.
 
 ---
 
+## Invoice Flags
+
+`incomplete` is a dedicated `BooleanField` on the `Invoice` model (not metadata-only). It is exposed as a top-level field in API responses and is directly filterable in list queries. `Invoice.metadata` may still contain `missing_data_summary` and supporting details when `incomplete=true`.
+
+`provisional` is stored in `Invoice.metadata`. It is available in detail and generate responses but intentionally excluded from the list response in v1.
+
+---
+
 ## Draft and Finalized Behavior
 
 ### Draft invoice
 
-- may be recalculated
+- may be updated by calling `POST /generate` with `force=true` (dedicated `recalculate` endpoint is deferred to v2)
 - may be deleted and rebuilt internally
 - not yet final
 

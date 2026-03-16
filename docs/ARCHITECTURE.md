@@ -132,7 +132,7 @@ Future resource types should extend the same architectural pattern rather than i
 
 All domain models live in `apps/billing/models/` as a Python package. Organize into sub-modules:
 
-- `apps/billing/models/base.py` — TimestampedModel, CreatedAtModel, BillingAccountBase (abstract)
+- `apps/billing/models/base.py` — TimestampedModel, CreatedAtModel
 - `apps/billing/models/billing_accounts.py` — BillingAccountBase (abstract), BillingAccount (concrete UiO implementation)
 - `apps/billing/models/pricing.py` — PriceList, ResourcePrice
 - `apps/billing/models/resources.py` — ResourceModel (abstract), StorageHotel, VirtualMachine
@@ -176,10 +176,11 @@ Use service modules for multi-step business operations.
 Examples:
 
 - invoice generation
-- invoice recalculation
 - invoice finalization
 - usage ingestion
 - quota ingestion
+
+Note: a dedicated `recalculate` endpoint is deferred to v2. In v1, draft invoice updates use `POST /generate` with `force=true`.
 
 Services coordinate model updates inside clear transaction boundaries.
 
@@ -203,7 +204,6 @@ Use DRF viewsets for standard CRUD endpoints.
 Use explicit action endpoints or API views for domain workflows such as:
 
 - generate invoice
-- recalculate invoice
 - finalize invoice
 - ingest usage snapshots
 
@@ -219,7 +219,6 @@ Examples:
 
 - ingestion of daily snapshots
 - invoice generation
-- invoice recalculation
 - invoice finalization
 
 These workflows must either:
