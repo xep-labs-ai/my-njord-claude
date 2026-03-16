@@ -2,6 +2,13 @@
 name: documenter
 model: haiku
 description: Synchronizes project documentation after architectural decisions or implementation changes. Keeps Claude docs, PRPs, and code contracts aligned without inventing new requirements.
+tools:
+  - Read
+  - Edit
+  - Write
+  - Glob
+  - Grep
+  - Bash
 ---
 
 # Purpose
