@@ -50,6 +50,40 @@ Proposal: **(a)**. Concurrent invoice generation for the same account and period
 
 **Decision:**
 
+Answer is the following block:
+
+```
+I think adding `selection_scope` to the advisory lock in v1 is a good idea and not too complicated.
+
+Decision:
+
+Use an advisory lock scoped to:
+
+- `billing_account`
+- `period_start`
+- `period_end`
+- `selection_scope`
+
+Reasoning:
+
+- `selection_scope` is already part of the logical invoice identity
+- it is a simple and stable value to include in the lock key
+- this reduces unnecessary serialization compared with locking only on `(billing_account, period_start, period_end)`
+- it is especially useful when the same billing account commonly generates separate invoices for different resource categories such as StorageHotel and VirtualMachine
+
+Tradeoff:
+
+- this is still more conservative than locking on the full uniqueness identity
+- requests with the same `selection_scope` but different underlying selections may still serialize
+- however, this is a good v1 balance between correctness, simplicity, and practical concurrency
+
+Recommendation:
+
+- include `selection_scope` in the advisory lock key in v1
+- keep `selection_fingerprint` out of the lock key for now unless a stronger concurrency need appears later
+- document explicitly that the lock is intentionally broader than the full uniqueness constraint, but narrower than account+period-only locking
+```
+
 ---
 
 ### H-2. `resource_snapshot` described as a model field in BILLING.md, but it lives in `InvoiceLine.metadata`
@@ -59,6 +93,30 @@ Proposal: **(a)**. Concurrent invoice generation for the same account and period
 Proposal: fix the phrasing in `BILLING.md` to explicitly state that `resource_snapshot` is a required key within `InvoiceLine.metadata`, not a top-level model field.
 
 **Decision:**
+
+Answer is the following block:
+
+```
+Accept the proposal.
+
+Decision:
+
+Fix the phrasing in `BILLING.md` so it states explicitly that `resource_snapshot` is a required key inside `InvoiceLine.metadata`, not a top-level model field.
+
+Reasoning:
+
+- the current PRPs already consistently place `resource_snapshot` inside `InvoiceLine.metadata`
+- `BILLING.md` should not imply a different storage model
+- this keeps the billing rules aligned with the actual snapshot design, where frozen identifying resource data is stored as part of invoice metadata rather than as a separate model column
+
+Recommended wording:
+
+`InvoiceLine.metadata` must include a required `resource_snapshot` key containing the minimal frozen identifying attributes needed for audit and display.
+
+Clarification:
+
+`resource_snapshot` is not a top-level field on `InvoiceLine`; it is a required structured value stored inside `InvoiceLine.metadata`.
+```
 
 ---
 
@@ -71,6 +129,8 @@ Proposal: fix the phrasing in `BILLING.md` to explicitly state that `resource_sn
 Proposal: add `incomplete` (optional, boolean) to the list of supported query parameters in `003-invoice-api.prp.md`.
 
 **Decision:**
+
+Accept the proposal
 
 ---
 
@@ -85,6 +145,8 @@ Proposal: update the error example in `003-invoice-api.prp.md` to use `duplicate
 
 **Decision:**
 
+Accept the proposal
+
 ---
 
 ### M-3. Duplicate prevention tuple wording — raw fields vs. `selection_fingerprint`
@@ -98,6 +160,8 @@ Proposal: update `003-invoice-api.prp.md` line 362 to reference `selection_finge
 
 **Decision:**
 
+Accept the proposal
+
 ---
 
 ### M-4. Pricing overlap 409 has no defined error code in `API.md`
@@ -108,6 +172,8 @@ Proposal: add `price_range_overlap` to the 409 error code table in `API.md`, and
 
 **Decision:**
 
+Accept the proposal
+
 ---
 
 ### M-5. `InvoiceLine` metadata examples in `002-resource-models.prp.md` missing `resource_snapshot`
@@ -117,6 +183,8 @@ The central InvoiceLine metadata examples for StorageHotel and VirtualMachine in
 Proposal: add `resource_snapshot` to both InvoiceLine metadata examples in `002-resource-models.prp.md`, consistent with the resource PRPs.
 
 **Decision:**
+
+Accept the proposal
 
 ---
 
@@ -130,6 +198,36 @@ The `{dimension}_days` naming convention is documented, and examples exist (e.g.
 Proposal: add a formal definition to `001-billing-engine.prp.md` or `BILLING.md`: "`{dimension}_days` is the sum of `InvoiceDailyCost.metadata.normalized_usage[dimension]` across all billed days for the resource in the invoice period, including autofilled days."
 
 **Decision:**
+
+Anser is the following block:
+
+```
+Accept the proposal.
+
+Decision:
+
+Add a formal definition to `001-billing-engine.prp.md` or `BILLING.md`.
+
+Definition:
+
+For a given invoice line, `{dimension}_days` is the sum of `InvoiceDailyCost.metadata.normalized_usage[dimension]` across all billed days for that resource in the invoice period.
+
+This sum:
+- is computed from persisted `InvoiceDailyCost` rows
+- includes autofilled days
+- excludes non-billable days, because no `InvoiceDailyCost` row exists for those days
+
+Reasoning:
+
+- `total_quantity_by_dimension` is an aggregated summary of the daily billing snapshots
+- the persisted `InvoiceDailyCost.metadata.normalized_usage` values are the authoritative source for that aggregation
+- this makes the line-level quantity summary deterministic, explainable, and reproducible
+- it also works consistently for both single-dimension and multi-dimension resources
+
+Recommended wording:
+
+`{dimension}_days` is the sum of `InvoiceDailyCost.metadata.normalized_usage[dimension]` across all billed days for the same `(invoice, resource_type, resource_id)` tuple. Autofilled billed days are included in this sum.
+```
 
 ---
 
@@ -145,6 +243,28 @@ Two options:
 
 **Decision:**
 
+Answer is the following block:
+
+```
+Choose option (a).
+
+Decision:
+
+Add `selection_scope` as an optional filter parameter to the invoice list endpoint.
+
+Reasoning:
+
+- `selection_scope` is already part of the invoice identity and returned in list responses
+- exposing it as a filter makes the list endpoint more consistent and easier to use
+- it allows clients to distinguish between invoices generated with different selection strategies
+
+Example:
+
+GET /api/v1/invoices/?selection_scope=resource_types
+
+This parameter should match the top-level `selection_scope` column on the Invoice model, not metadata.
+```
+
 ---
 
 ### L-2. `quota_raw` API validation constraints not documented (max digits, decimal places)
@@ -154,6 +274,37 @@ The model defines `quota_raw` as `DecimalField(max_digits=25, decimal_places=4)`
 Proposal: add explicit precision constraints to the `quota_raw` validation rules in `004-resource-api.prp.md` (`max_digits=25, decimal_places=4`).
 
 **Decision:**
+
+Answer is the following block:
+
+```
+Accept the proposal.
+
+Decision:
+
+Keep `quota_raw` defined as `DecimalField(max_digits=25, decimal_places=4)` and explicitly document the precision constraints in `004-resource-api.prp.md`.
+
+Reasoning:
+
+- the current precision already allows extremely large quota values (21 integer digits)
+- this far exceeds realistic filesystem quota sizes even when stored in KB/KiB units
+- the real issue is that the API contract does not communicate the numeric limits to implementers
+
+Action:
+
+Add explicit validation rules to `004-resource-api.prp.md`:
+
+quota_raw
+- type: decimal
+- max_digits: 25
+- decimal_places: 4
+- allowed values: ≥ 0
+
+Clarification:
+
+`quota_raw` represents the raw quota value in the unit specified by `quota_unit` (KB or KiB).  
+During billing it is normalized to TB for pricing calculations.
+```
 
 ---
 
@@ -167,6 +318,8 @@ Two options:
 
 **Decision:**
 
+Accept option a
+
 ---
 
 ### L-4. `ram_gb` binary GiB note missing from billing engine PRP
@@ -176,6 +329,8 @@ Two options:
 Proposal: add a note to the Allowed Pricing Dimensions section in `001-billing-engine.prp.md` clarifying that `ram_gb` is computed as `ram_mb / 1024` (binary). Also confirm whether `disk_gb` is binary or decimal and document it explicitly.
 
 **Decision:**
+
+Accept the proposal
 
 ---
 
@@ -187,6 +342,8 @@ Proposal: add a note to the VirtualMachine resource PRP or `004-resource-api.prp
 
 **Decision:**
 
+Accept the proposal
+
 ---
 
 ### L-6. Draft replacement wording "if any" is logically vacuous
@@ -197,6 +354,8 @@ Proposal: replace with: "The replacement draft has `invoice_number = null` (cons
 
 **Decision:**
 
+Accept the proposal
+
 ---
 
 ### L-7. BILLING.md says "validation error" for `billing_account_not_billable` — should say "domain error (422)"
@@ -206,6 +365,8 @@ Proposal: replace with: "The replacement draft has `invoice_number = null` (cons
 Proposal: change the wording in `BILLING.md` to "must fail immediately with a billing domain error (422)" to align with the 400/422 distinction.
 
 **Decision:**
+
+Accept the proposal
 
 ---
 
@@ -223,6 +384,8 @@ Two options:
 
 **Decision:**
 
+Accept option a
+
 ---
 
 ### L-9. `dimension_costs` examples show 2 decimal places; `daily_cost` stores 10
@@ -232,6 +395,8 @@ Two options:
 Proposal: update `dimension_costs` examples to show full Decimal precision (e.g., `"6.5753424657"`) or add a note that the examples are simplified and actual values use full Decimal precision.
 
 **Decision:**
+
+Accept the proposal
 
 ---
 
@@ -243,6 +408,33 @@ Proposal: add the fallback format to `BILLING.md`'s line-level snapshot section,
 
 **Decision:**
 
+The answer is the following block:
+
+```
+Accept the proposal.
+
+Decision:
+
+Add the fallback format rule to `BILLING.md`'s line-level snapshot section, and keep it aligned with `002-resource-models.prp.md`.
+
+Reasoning:
+
+- `InvoiceLine.description` is part of the frozen invoice snapshot and must be deterministic
+- `BILLING.md` should not stay vague if the model PRP already defines the actual fallback rule
+- adding the rule directly to `BILLING.md` makes the invoice-generation behavior easier to implement consistently
+
+Recommended wording:
+
+`InvoiceLine.description` is a frozen human-readable description captured at invoice generation time.
+
+Construction rule:
+- use the resource's `name` if it is present and non-blank
+- if `name` is null or blank, fall back to `{ResourceType} #{resource_id}` (for example, `StorageHotel #101`)
+- once stored, the description must not be recomputed from the live resource
+
+A short cross-reference to `002-resource-models.prp.md` is fine, but `BILLING.md` should include the rule explicitly.
+```
+
 ---
 
 ### L-11. `RETIRED → ACTIVE` prohibition not stated in `002-resource-models.prp.md`
@@ -252,6 +444,8 @@ Proposal: add the fallback format to `BILLING.md`'s line-level snapshot section,
 Proposal: add a brief transition rules table or note to `002-resource-models.prp.md` listing both allowed and forbidden transitions, or add a cross-reference to `004-resource-api.prp.md`.
 
 **Decision:**
+
+Accept the proposal
 
 ---
 
@@ -265,6 +459,47 @@ Proposal: explicitly document that `filesystem_identifier` and `quota_unit` are 
 
 **Decision:**
 
+Answer is the following block:
+
+```
+Partially reject the proposal.
+
+Decision:
+
+- `filesystem_identifier` is not patchable after creation
+- `quota_unit` remains patchable in v1 as an administrative correction workflow
+- `VirtualMachine.provisioner` is not patchable after creation
+
+Reasoning:
+
+- `filesystem_identifier` functions as the StorageHotel external/natural identifier and should remain stable
+- `provisioner` is part of the VM identity/context and should also remain stable
+- `quota_unit` is different: unit mistakes are a realistic human error at resource creation time, so making it completely immutable would be too rigid in practice
+
+Required documentation note for `quota_unit`:
+
+Changing `quota_unit` is allowed in v1, but it is a high-impact correction because it changes how `quota_raw` values are interpreted for billing.
+
+Because historical unit assignment is not tracked, changing `quota_unit` after snapshots already exist may affect invoice generation for uninvoiced historical periods.
+
+Operational rule:
+
+- if `quota_unit` is changed, affected draft invoices should be regenerated before finalization
+- already finalized invoices remain immutable
+- the change should be audit-logged
+
+Documentation update:
+
+`004-resource-api.prp.md` should explicitly list:
+
+StorageHotel
+- not patchable: `filesystem_identifier`
+- patchable with warning/correction semantics: `quota_unit`
+
+VirtualMachine
+- not patchable: `provisioner`
+```
+
 ---
 
 ### L-13. `updated_at` missing from "not patchable" exclusion list in `005-pricing-api.prp.md`
@@ -274,6 +509,8 @@ Proposal: explicitly document that `filesystem_identifier` and `quota_unit` are 
 Proposal: update the exclusion list to: "All fields are patchable except `id`, `created_at`, `updated_at`."
 
 **Decision:**
+
+Accept the proposal
 
 ---
 
@@ -286,5 +523,25 @@ Two options:
 - **(b)** `config/settings/tests/` is intentional — document its purpose.
 
 **Decision:**
+
+Answer is the following block:
+
+```
+Choose option (a).
+
+Decision:
+
+`config/settings/tests/` is an error in the project structure diagram and should be removed. The project will use a single dedicated test settings module: `config/settings/test.py`.
+
+Reasoning:
+
+- Django projects typically use a single test settings module (`config.settings.test`)
+- the `config/settings/tests/` directory is not referenced anywhere else and its purpose is undefined
+- keeping both would create confusion for implementers and tooling (pytest, Django management commands, mypy)
+
+Action:
+
+Update `000-system-overview.prp.md` to remove the `config/settings/tests/` directory and document that the test environment uses `config/settings/test.py`.
+```
 
 ---
