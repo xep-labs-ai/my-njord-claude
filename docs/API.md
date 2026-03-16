@@ -203,6 +203,7 @@ Use 400 for request validation. Use 422 for billing domain failures.
 | `invoice_already_finalized` | Invoice finalize | Attempt to operate on a finalized invoice |
 | `duplicate_snapshot` | Snapshot ingestion | A snapshot for this resource and date already exists |
 | `price_row_already_closed` | ResourcePrice set-effective-to | Attempt to modify an already-closed price row |
+| `price_range_overlap` | ResourcePrice create | New price row has overlapping effective dates with an existing row |
 
 ### 422 Unprocessable Entity codes
 

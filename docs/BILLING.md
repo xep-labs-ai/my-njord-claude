@@ -186,7 +186,7 @@ Billability is resolved **per day** using the `active_from` and `active_to` fiel
 
 Before any resource selection or per-day evaluation happens:
 
-- `billing_account.make_invoice` must be `True`. If `make_invoice = False`, invoice generation must fail immediately with a validation error.
+- `billing_account.make_invoice` must be `True`. If `make_invoice = False`, invoice generation must fail immediately with a billing domain error (422).
 
 This check is intentionally placed before resource selection to fail fast when the billing account has invoicing disabled.
 
@@ -451,6 +451,8 @@ VirtualMachine example:
 }
 ```
 
+**Note on example precision:** The `dimension_costs` examples above are simplified for readability. Actual values use full Decimal precision matching `InvoiceDailyCost.daily_cost` (10 decimal places), e.g., `"6.5753424657"` rather than `"6.58"`.
+
 **`daily_cost` field meaning:**
 
 `InvoiceDailyCost.daily_cost` = sum of all values in `metadata.dimension_costs` for that row.
@@ -497,8 +499,8 @@ Per billed resource:
 - resource reference
 - resource type
 - total cost
-- human-readable description
-- `resource_snapshot` — **required** frozen snapshot of the resource's identifying attributes at generation time. This is the primary audit snapshot and must be present for all InvoiceLines.
+- `description` — `InvoiceLine.description` is a frozen human-readable description captured at invoice generation time. Construction rule: use the resource's `name` if it is present and non-blank; if `name` is null or blank, fall back to `{ResourceType} #{resource_id}` (e.g., `StorageHotel #101`). Once stored, the description must not be recomputed from the live resource. See also `002-resource-models.prp.md`.
+- `resource_snapshot` — `InvoiceLine.metadata` must include a required `resource_snapshot` key containing the minimal frozen identifying attributes needed for audit and display. `resource_snapshot` is not a top-level field on `InvoiceLine`; it is a required structured value stored inside `InvoiceLine.metadata`. This is the primary audit snapshot and must be present for all InvoiceLines.
 - summary billing metadata useful for debugging
 
 ### Daily-level snapshot
