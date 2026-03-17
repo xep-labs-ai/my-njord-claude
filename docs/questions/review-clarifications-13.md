@@ -1,0 +1,211 @@
+# Review Clarifications 13
+
+Architecture review round 13 — cross-document consistency audit after rounds 1-12.
+Edit each `**Decision:**` line with your answer.
+
+---
+
+## HIGH
+
+### H-1. `clarifications.md` Q1 and Q6 still say 3 InvoiceDailyCost rows per VM per day
+
+`clarifications.md` Q1 states "3 InvoiceDailyCost rows per VM per day" and Q6 states "One row per dimension per day (3 rows per VM per day)." The current PRP design (established in review-clarifications-8 C-1, reflected in `002-resource-models.prp.md`, `001-billing-engine.prp.md`, `BILLING.md`, and `virtual-machine.prp.md`) specifies **one InvoiceDailyCost row per resource per day** with per-dimension breakdown in metadata.
+
+If Claude reads `clarifications.md` before the PRPs, it could implement the wrong granularity -- creating 3 rows per VM per day instead of 1 row with structured metadata. This is a fundamental data model decision.
+
+Proposal: add a `**Superseded:**` marker to Q1 and Q6 in `clarifications.md` stating: "Superseded by review-clarifications-8 C-1. Current design: one InvoiceDailyCost row per resource per day with per-dimension breakdown in metadata. See `002-resource-models.prp.md`."
+
+This is consistent with the precedence rule from round 12 L-2 but adds an explicit marker to prevent misreading, given the severity of the contradiction.
+
+**Decision:**
+
+---
+
+### H-2. `003-invoice-api.prp.md` description examples show fallback format even when `name` is non-blank
+
+The `description` field in all InvoiceLine examples in `003-invoice-api.prp.md` shows `"StorageHotel #101"` -- the fallback format. However, the `resource_snapshot` in the same examples shows `"name": "storage-primary"` (non-blank). Per the documented construction rule, when `name` is present and non-blank, `description` should be `"storage-primary"`, not the fallback.
+
+Round 11 M-1 updated `resource_snapshot.name` to show realistic names, but the `description` field was not updated to match. The examples are now internally inconsistent: the snapshot has a real name, but the description uses the fallback as if the name were blank.
+
+Proposal: change `"description": "StorageHotel #101"` to `"description": "storage-primary"` in the generate, detail, and finalize response examples in `003-invoice-api.prp.md`. The fallback `"StorageHotel #101"` should only appear in examples where `name` is blank or null.
+
+**Decision:**
+
+---
+
+### H-3. RETIRED transition automatically sets `deleted_at` -- conflates retirement with soft-delete
+
+`004-resource-api.prp.md` line 418 states: "When a resource transitions to RETIRED via PATCH, the service layer sets `deleted_at` to the current timestamp automatically." This means every retirement is also a soft-delete, which causes RETIRED resources to disappear from default querysets immediately.
+
+However, round 11 H-2 explicitly distinguishes RETIRED from soft-deleted resources for ingestion purposes: RETIRED resources accept late-arriving snapshots, while soft-deleted resources return 404. If retirement automatically sets `deleted_at`, then RETIRED resources are also soft-deleted and would return 404 from the default manager -- contradicting the H-2 decision.
+
+Three options:
+
+- **(a)** Remove the automatic `deleted_at` assignment from the RETIRED transition. Make soft-deletion a separate administrative action (e.g., a dedicated endpoint or a separate PATCH field). RETIRED resources remain visible in default querysets and accept late-arriving ingestion.
+- **(b)** Keep the automatic `deleted_at` on RETIRED, but change the ingestion endpoints to use the `billing_objects` manager (which includes soft-deleted resources) for lookup. This preserves H-2 behavior but means ingestion endpoints use a different manager than CRUD endpoints.
+- **(c)** Keep the current behavior and accept that RETIRED resources are immediately soft-deleted. Update H-2 to clarify that ingestion for RETIRED resources requires using the `billing_objects` manager for resource lookup.
+
+**Decision:**
+
+---
+
+### H-4. Invoice number counter -- PRP says global never-resetting, clarifications say per-month
+
+`001-billing-engine.prp.md` line 384 says `NNNNN` is a "**global auto-incrementing sequence** (not per-month) -- the counter does not reset each month." But `clarifications.md` Q8 says "Global per month. All billing accounts share one monthly sequence." and Q3 says "5-digit counter, global monthly sequence."
+
+These are contradictory. If the counter never resets, then `INV-2026-02-00006` follows `INV-2026-01-00005` (the `YYYY-mm` is decorative). If the counter resets monthly, `INV-2026-02-00001` can coexist with `INV-2026-01-00001`.
+
+This affects:
+- uniqueness constraints (global unique vs. unique within month)
+- the PostgreSQL sequence design (one global sequence vs. monthly reset logic)
+- the meaning of the `NNNNN` component
+
+Two options:
+
+- **(a)** Global never-resetting sequence (as the PRP currently states). `YYYY-mm` in the format reflects the finalization date for human readability only. `NNNNN` comes from a single PostgreSQL sequence that never resets. Uniqueness is on `invoice_number` globally.
+- **(b)** Per-month resetting sequence (as `clarifications.md` Q3/Q8 originally stated). `NNNNN` resets to `00001` each month. Requires either a monthly sequence reset mechanism or a `SELECT MAX(...) FOR UPDATE` scoped by month. Uniqueness is still on `invoice_number` globally (the full string is unique).
+
+**Decision:**
+
+---
+
+## MEDIUM
+
+### M-1. Invoice list response example shows `total_amount: null` for a draft invoice
+
+`003-invoice-api.prp.md` list response example shows `"total_amount": null` for a draft invoice. Per `002-resource-models.prp.md`, `total_amount` is "nullable -- null only before generation runs; set during draft creation." A successfully generated draft always has a non-null `total_amount`. The list endpoint only returns invoices that have been generated, so `total_amount` should never be null in practice.
+
+Proposal: change the list response example `total_amount` from `null` to a realistic value like `"1500.50"` to match the generate and detail examples. This prevents implementers from incorrectly treating `null` as a common draft state.
+
+**Decision:**
+
+---
+
+### M-2. `deleted_at` missing from StorageHotel and VirtualMachine field lists in `002-resource-models.prp.md`
+
+The StorageHotel field list (line 229) and VirtualMachine field list (line 313) in `002-resource-models.prp.md` say "All fields (including inherited from ResourceModel)" but neither includes `deleted_at`. The `ResourceModel` section (line 175) explicitly defines `deleted_at`, and both `storage-hotel.prp.md` and `virtual-machine.prp.md` correctly include `deleted_at` in their field lists.
+
+Proposal: add `deleted_at` to both the StorageHotel and VirtualMachine field lists in `002-resource-models.prp.md`, consistent with the resource-specific PRPs and the "all fields" header.
+
+**Decision:**
+
+---
+
+### M-3. `dimension_costs` examples still use simplified precision despite L-11 decision
+
+Review-clarifications-11 L-11 decided to "update the examples to show full precision." The `total_cost` examples in `003-invoice-api.prp.md` were updated to `"1500.5000000000"`. However, `dimension_costs` values in four documents still show simplified values like `"131.51"`, `"6.58"`, `"3.51"`, `"2.74"`:
+
+- `BILLING.md` (lines 430-455) -- has a precision disclaimer note
+- `002-resource-models.prp.md` (lines 605-630) -- has a precision disclaimer note
+- `storage-hotel.prp.md` (lines 174-184) -- no disclaimer
+- `virtual-machine.prp.md` (lines 195-208) -- no disclaimer
+
+Since `InvoiceDailyCost.daily_cost` uses 10 decimal places and `dimension_costs` values should match that precision, the L-11 decision to show full precision was not fully propagated to `dimension_costs`.
+
+Proposal: update all `dimension_costs` examples across all four documents to show full 10dp precision (e.g., `"131.5068493150"` instead of `"131.51"`). Remove the "simplified for readability" disclaimer notes since the examples will now be accurate.
+
+**Decision:**
+
+---
+
+### M-4. DecimalField response examples show integer-like values but DRF serializes at full precision
+
+API response examples in `004-resource-api.prp.md` show DecimalField values without trailing decimal places: `"quota_raw": "5000"`, `"ram_mb": "65536"`, `"disks_total_gb": "500"`. DRF's `DecimalField` serializer uses the field's `decimal_places` setting, so actual responses would be `"5000.0000"` (for `quota_raw` with `decimal_places=4`), `"65536.00"` (for `ram_mb` with `decimal_places=2`), and `"500.00"` (for `disks_total_gb` with `decimal_places=2`).
+
+Proposal: update the response examples to show the values at the field's configured precision: `"5000.0000"` for `quota_raw`, `"65536.00"` for `ram_mb`, `"500.00"` for `disks_total_gb`. This prevents implementers from being surprised by the actual DRF serialization output.
+
+**Decision:**
+
+---
+
+### M-5. `InvoiceLine` missing timestamp field specification
+
+`002-resource-models.prp.md` defines `TimestampedModel` (created_at + updated_at) and `CreatedAtModel` (created_at only) as base models. `InvoiceDailyCost` explicitly includes `created_at`. However, `InvoiceLine` has no timestamp fields listed and does not specify which base model it inherits from.
+
+InvoiceLine rows are created during invoice generation and deleted/recreated during draft replacement -- they are never updated in place. This makes `CreatedAtModel` the appropriate base.
+
+Proposal: add `created_at` to the InvoiceLine field list in `002-resource-models.prp.md` and note that InvoiceLine inherits from `CreatedAtModel` (append-only, no `updated_at`).
+
+**Decision:**
+
+---
+
+### M-6. `apps/ingest/` app boundary undefined
+
+`000-system-overview.prp.md` lists `apps/billing/` and `apps/ingest/` as the main Django apps. However, no PRP or documentation file describes what lives in `apps/ingest/` versus `apps/billing/`. All resource models, daily snapshot models, ingestion event models, and their field definitions are in the billing PRPs (`002-resource-models.prp.md`). The ingestion API endpoints are in `004-resource-api.prp.md`. It is unclear which models, views, and services belong in each app.
+
+Two options:
+
+- **(a)** Define the boundary: `apps/billing/` owns all models (resources, invoices, pricing). `apps/ingest/` owns ingestion API views, ingestion services, and ingestion event models. Daily snapshot models stay in `apps/billing/` since they are used by the billing engine.
+- **(b)** Merge everything into `apps/billing/` for v1 and defer the `apps/ingest/` split until the codebase is large enough to warrant it. Remove `apps/ingest/` from the overview.
+
+Proposal: **(a)** is cleaner architecturally, but the boundary should be explicitly documented. Add a brief note to `000-system-overview.prp.md` clarifying what each app owns.
+
+**Decision:**
+
+---
+
+### M-7. `TESTING_TEMPLATES.md` RT-30 says "fails for that resource" but failure is global/fatal
+
+RT-30 says "invoice generation fails for that resource" and "failure explains no prior snapshot exists for autofill." Per `BILLING.md` and `001-billing-engine.prp.md`, when `force=false` and autofill cannot find a prior snapshot, the **entire invoice generation fails** (fatal error -- not a per-resource skip). The entire transaction is rolled back.
+
+Proposal: update RT-30 to say "invoice generation fails entirely (the entire transaction is rolled back)" instead of "fails for that resource." Add a reference to the fatal-error semantics from `BILLING.md`.
+
+**Decision:**
+
+---
+
+### M-8. `explicit_resources` metadata format not specified in `002-resource-models.prp.md`
+
+The Invoice metadata "may include" list in `002-resource-models.prp.md` mentions `explicit_resources` but does not specify its format. The canonical format is `[{"resource_type": "...", "resource_id": 101}]` as defined in `001-billing-engine.prp.md` and `003-invoice-api.prp.md`.
+
+Without a format note in the model PRP, an implementer could store the data in a different shape, breaking fingerprint reproducibility and audit consistency.
+
+Proposal: add a brief format note to the Invoice metadata section in `002-resource-models.prp.md` specifying that `explicit_resources` uses the canonical `[{"resource_type": "...", "resource_id": <int>}]` format, or add a cross-reference to `001-billing-engine.prp.md`.
+
+**Decision:**
+
+---
+
+## LOW
+
+### L-1. Force-mode zero-cost wording in `BILLING.md` could be clearer
+
+`BILLING.md` line 249 now correctly states force-mode zero-cost rows have `autofilled=false` (per round 12 H-5). However, the phrasing "because no prior snapshot is being carried forward, only zero is assigned" is slightly ambiguous -- "only zero is assigned" could be read as "the value zero is the only thing assigned" or "merely zero is assigned."
+
+Proposal: rephrase to: "...those days produce a zero-cost `InvoiceDailyCost` row with `autofilled=false` (zero is assigned as a fallback because no snapshot data exists, not because a prior value was carried forward). See Force Mode behavior."
+
+**Decision:**
+
+---
+
+### L-2. No test template for force-mode zero-cost billing
+
+`TESTING_TEMPLATES.md` has no RT-xx template covering `force=true` with `autofill_missing_days=false` zero-cost billing. This is a distinct code path with specific metadata expectations: `autofilled=false`, `incomplete=true`, `missing_data_summary` in Invoice metadata, and `daily_cost = 0` with zero normalized usage.
+
+Proposal: add a new test template RT-35 for force-mode zero-cost billing, covering:
+
+- missing snapshot + `force=true` + `autofill_missing_days=false`
+- produces zero-cost `InvoiceDailyCost` rows with `autofilled=false`
+- invoice has `incomplete=true`
+- `missing_data_summary` in Invoice metadata lists affected resources and dates
+- daily cost is 0
+- line total reflects the zero-cost days
+
+**Decision:**
+
+---
+
+### L-3. StorageHotel missing explicit Autofill Rule section
+
+`virtual-machine.prp.md` has an explicit "Autofill Rule" section documenting atomic carry-forward behavior. `storage-hotel.prp.md` has no equivalent section. The resource template `_resource-template.prp.md` now includes an Autofill Rule placeholder (per round 11 L-12). StorageHotel should also have this section for consistency.
+
+Proposal: add an "Autofill Rule" section to `storage-hotel.prp.md` stating: "When autofill is needed for a missing day, `quota_raw` is carried forward from the last known `StorageHotelDailyQuota` row. Since StorageHotel has a single billing dimension (`quota_tb`), the carry-forward is equivalent to carrying forward the complete billing state."
+
+**Decision:**
+
+---
+
+## Follow-Up Questions
+
+No follow-up questions required for this round. H-3 and H-4 require design decisions from the user before fixes can be applied. All other items include proposed fixes that can be applied once decisions are recorded.
