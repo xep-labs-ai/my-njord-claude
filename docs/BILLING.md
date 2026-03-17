@@ -246,7 +246,7 @@ Non-billable days include:
 
 Auditability for the active billing window and billed day count may be preserved in invoice-line or invoice-level metadata.
 
-**Clarification:** This rule applies to days outside the resource's billing window (`active_from`/`active_to`). It is distinct from billable days where snapshot data is missing -- under `force=true`, those days produce a zero-cost `InvoiceDailyCost` row with `autofilled=true`. See Force Mode behavior.
+**Clarification:** This rule applies to days outside the resource's billing window (`active_from`/`active_to`). It is distinct from billable days where snapshot data is missing -- under `force=true`, those days produce a zero-cost `InvoiceDailyCost` row with `autofilled=false` (because no prior snapshot is being carried forward, only zero is assigned). See Force Mode behavior.
 
 ---
 
@@ -455,6 +455,15 @@ VirtualMachine example:
 
 **Note on example precision:** The `dimension_costs` examples above are simplified for readability. Actual values use full Decimal precision matching `InvoiceDailyCost.daily_cost` (10 decimal places), e.g., `"6.5753424657"` rather than `"6.58"`.
 
+**Dual-storage strategy for `autofilled`:**
+
+`autofilled` exists in two places:
+
+1. As a dedicated `BooleanField(default=False)` column on the `InvoiceDailyCost` model — this is the queryable source of truth and supports direct filtering and aggregation queries
+2. As a required key in `InvoiceDailyCost.metadata` — for audit self-containment, ensuring the snapshot is complete and reproducible
+
+The column is the primary source; the metadata copy ensures audit transparency. See `002-resource-models.prp.md` and review-clarifications-10 C-1 for details.
+
 **`daily_cost` field meaning:**
 
 `InvoiceDailyCost.daily_cost` = sum of all values in `metadata.dimension_costs` for that row.
@@ -500,8 +509,9 @@ Per billed resource:
 
 - resource reference
 - resource type
+- currency
 - total cost
-- `description` — `InvoiceLine.description` is a frozen human-readable description captured at invoice generation time. Construction rule: use the resource's `name` if it is present and non-blank; if `name` is null or blank, fall back to `{ResourceType} #{resource_id}` (e.g., `StorageHotel #101`). Once stored, the description must not be recomputed from the live resource. See also `002-resource-models.prp.md`.
+- `description` — `InvoiceLine.description` is a frozen human-readable description captured at invoice generation time. Construction rule: use the resource's `name` if it is present and non-blank; if `name` is null or blank, fall back to `{ResourceType} #{resource_id}` where `{ResourceType}` is the Django model class name in PascalCase (e.g., `StorageHotel #101`, not `storage_hotel #101`). Once stored, the description must not be recomputed from the live resource. See also `002-resource-models.prp.md`.
 - `resource_snapshot` — `InvoiceLine.metadata` must include a required `resource_snapshot` key containing the minimal frozen identifying attributes needed for audit and display. `resource_snapshot` is not a top-level field on `InvoiceLine`; it is a required structured value stored inside `InvoiceLine.metadata`. This is the primary audit snapshot and must be present for all InvoiceLines.
 - summary billing metadata useful for debugging
 
@@ -511,6 +521,7 @@ Per billed resource per day:
 
 - resource reference
 - resource type
+- currency
 - billed day
 - normalized usage values used for billing
 - price used
@@ -588,7 +599,7 @@ The rounding policy must be consistent across resource types.
 
 There must be at most one draft invoice per `(billing_account, period_start, period_end, selection_scope, selection_fingerprint)`.
 
-`selection_fingerprint` is a deterministic hash of the canonical selection payload (resource types and explicit resources, each sorted before hashing).
+`selection_fingerprint` is a deterministic hash of the canonical selection payload (resource types and explicit resources, each sorted before hashing). See `001-billing-engine.prp.md` for the complete fingerprint algorithm and canonical payload schema.
 
 A matching finalized invoice must block regeneration entirely (finalized invoices are immutable).
 

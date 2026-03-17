@@ -38,6 +38,14 @@ These rules must always be respected.
 - Examples must use `vim`, never `nano`.
 - Documentation under `docs/` must stay synchronized with code.
 
+## Source of Truth
+
+PRPs (`docs/PRP/*.prp.md`) are the authoritative source of truth for the system architecture and design.
+
+Clarification files (`.claude/docs/questions/*.md`) provide historical context and rationale for decisions but may contain superseded answers.
+
+If any clarification file or earlier decision conflicts with a current PRP, the PRP takes precedence.
+
 ---
 
 ## Development Execution Pipeline

@@ -205,6 +205,8 @@ Use 400 for request validation. Use 422 for billing domain failures.
 | `price_row_already_closed` | ResourcePrice set-effective-to | Attempt to modify an already-closed price row |
 | `price_range_overlap` | ResourcePrice create | New price row has overlapping effective dates with an existing row |
 
+**Note:** ResourcePrice endpoints and the `set-effective-to` operation are fully documented in `005-pricing-api.prp.md`.
+
 ### 422 Unprocessable Entity codes
 
 | Code | Context | Meaning |
