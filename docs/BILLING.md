@@ -246,7 +246,7 @@ Non-billable days include:
 
 Auditability for the active billing window and billed day count may be preserved in invoice-line or invoice-level metadata.
 
-**Clarification:** This rule applies to days outside the resource's billing window (`active_from`/`active_to`). It is distinct from billable days where snapshot data is missing -- under `force=true`, those days produce a zero-cost `InvoiceDailyCost` row with `autofilled=false` (because no prior snapshot is being carried forward, only zero is assigned). See Force Mode behavior.
+**Clarification:** This rule applies to days outside the resource's billing window (`active_from`/`active_to`). It is distinct from billable days where snapshot data is missing -- under `force=true`, those days produce a zero-cost `InvoiceDailyCost` row with `autofilled=false` (zero is assigned as a fallback because no snapshot data exists, not because a prior value was carried forward). See Force Mode behavior.
 
 ---
 
@@ -433,7 +433,7 @@ StorageHotel example:
   "resolved_prices": {
     "quota_tb": {"price_per_unit_year": "400", "currency": "NOK", "discount_applied": true}
   },
-  "dimension_costs": {"quota_tb": "131.51"},
+  "dimension_costs": {"quota_tb": "131.5068493150"},
   "autofilled": false
 }
 ```
@@ -448,12 +448,10 @@ VirtualMachine example:
     "ram_gb": {"price_per_unit_year": "40", "currency": "NOK", "discount_applied": false},
     "disk_gb": {"price_per_unit_year": "2", "currency": "NOK", "discount_applied": false}
   },
-  "dimension_costs": {"cpu_count": "6.58", "ram_gb": "3.51", "disk_gb": "2.74"},
+  "dimension_costs": {"cpu_count": "6.5753424657", "ram_gb": "3.5068493150", "disk_gb": "2.7397260273"},
   "autofilled": false
 }
 ```
-
-**Note on example precision:** The `dimension_costs` examples above are simplified for readability. Actual values use full Decimal precision matching `InvoiceDailyCost.daily_cost` (10 decimal places), e.g., `"6.5753424657"` rather than `"6.58"`.
 
 **Dual-storage strategy for `autofilled`:**
 

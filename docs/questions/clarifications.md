@@ -11,6 +11,8 @@ along with their answers. Unanswered questions are marked as PENDING.
 
 **Answer:** VM v1 billing is per-dimension (cpu_count, ram_gb, disk_gb), with 3 InvoiceDailyCost rows per VM per day. Discounts apply per dimension independently (resolved via Q6 and Q7).
 
+**Superseded:** by review-clarifications-8 C-1. Current design: one InvoiceDailyCost row per resource per day with per-dimension breakdown in metadata. See `002-resource-models.prp.md`.
+
 **Question:**
 The VM PRP explicitly leaves this unresolved:
 > "The exact v1 pricing strategy must define whether billing is based on one combined capacity formula or separate dimensions."
@@ -52,6 +54,8 @@ Should implementation be:
 **Question:**
 When billing a VM per dimension, should `InvoiceDailyCost` produce:
 - (b) One row per dimension per day (3 rows per VM per day: cpu, ram, disk)
+
+**Superseded:** by review-clarifications-8 C-1. Current design: one InvoiceDailyCost row per resource per day with per-dimension breakdown in metadata. See `002-resource-models.prp.md`.
 
 ---
 

@@ -659,8 +659,10 @@ Intent:
 
 Expected behavior:
 
-- invoice generation fails for that resource
-- failure explains no prior snapshot exists for autofill
+- the entire invoice generation fails (the entire transaction is rolled back)
+- failure explains that no prior snapshot exists for autofill and the invoice cannot be partially generated
+
+See `BILLING.md` fatal-error semantics for `force=false` + `autofill_missing_days=true` + no prior snapshot.
 
 ---
 
@@ -715,6 +717,33 @@ Expected behavior:
 
 - invoice generation fails with clear price-overlap error
 - no finalized invoice is produced from invalid price configuration
+
+---
+
+## RT-35 — Force-mode zero-cost billing for missing snapshots
+
+### Intent
+
+Verifies that force=true with autofill_missing_days=false produces zero-cost InvoiceDailyCost rows for days with missing snapshot data, and correctly sets invoice flags and metadata.
+
+### Generic pattern
+
+Period: contiguous inclusive date range.
+
+Daily data exists for some days. One or more days have no snapshot.
+
+Flags: force=true, autofill_missing_days=false.
+
+Expected behavior:
+
+- invoice generation succeeds
+- days with real snapshots are billed normally
+- days with missing snapshots produce InvoiceDailyCost rows with daily_cost = 0
+- missing-day rows have autofilled = false (zero is a fallback, not a carry-forward)
+- invoice has incomplete = true
+- Invoice.metadata contains missing_data_summary listing affected resources and dates
+- line total includes the zero-cost days
+- invoice total reflects the mixed normal/zero-cost calculation
 
 ---
 

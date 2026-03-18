@@ -338,4 +338,73 @@ The reason for this field is that StorageHotel have a requirement to be able to 
 
 ## Follow-Up Questions
 
-You are allowed to ask follow up questions.
+### FQ-1. H-3 follow-up: what mechanism triggers soft-delete if not automatic on RETIRED?
+
+H-3 decision (a) removes the automatic `deleted_at` assignment from the RETIRED transition. RETIRED resources will remain visible in default querysets and accept late-arriving ingestion.
+
+This raises a question: how does soft-delete happen in v1?
+
+Three options:
+
+- **(a)** Add a dedicated `POST /api/v1/storage-hotels/{id}/soft-delete` (and equivalent for VirtualMachine) action endpoint. This is explicit and auditable. The endpoint sets `deleted_at` and enforces the soft-delete invariants (status must be RETIRED, active_to must be set).
+- **(b)** Allow setting `deleted_at` via PATCH on the resource. This is simpler but less explicit -- a client could accidentally soft-delete a resource by patching the wrong field.
+- **(c)** Defer soft-delete to v2. In v1, resources can be RETIRED but never soft-deleted. The `billing_objects` manager and `deleted_at` field remain in the schema for future use, but no API mechanism sets `deleted_at`.
+
+Proposal: **(a)** is the cleanest approach for a financial system -- explicit action endpoints are preferred over implicit field patches for irreversible operations. However, **(c)** is the simplest if soft-delete is not operationally needed in v1.
+
+**Decision:**
+
+Soft-delete should be triggered by a dedicated DRF endpoint action. Choose option (a).
+
+---
+
+### FQ-2. H-4 follow-up: `invoice_number` `max_length=20` may be too short for growing counter
+
+H-4 decided that `NNNNN` is zero-padded to at least 5 digits but may grow beyond 5 digits as the sequence increases. The current `invoice_number` field is `CharField(max_length=20)` in `002-resource-models.prp.md`.
+
+Format breakdown: `INV-YYYY-mm-NNNNN` = 4 + 5 + 3 + counter_digits = 12 + counter_digits.
+
+- 5 digits: `INV-2026-01-00001` = 17 characters (fits)
+- 6 digits: `INV-2026-02-100000` = 18 characters (fits)
+- 7 digits: `INV-2026-03-1000000` = 19 characters (fits)
+- 8 digits: `INV-2026-04-10000000` = 20 characters (fits exactly)
+- 9 digits: `INV-2026-05-100000000` = 21 characters (exceeds max_length=20)
+
+At ~10,000 resources and monthly invoicing, the counter could reach 8 digits within about 8 years. 9 digits would take ~80 years.
+
+Two options:
+
+- **(a)** Increase `max_length` to 30 to provide comfortable headroom. This is a schema-time decision with no runtime cost.
+- **(b)** Keep `max_length=20`. 8-digit counters are sufficient for the foreseeable operational lifetime. Revisit if needed.
+
+Proposal: **(a)** is safer. Changing `max_length` later requires a migration on a table with potentially millions of rows. Setting it to 30 now costs nothing.
+
+**Decision:**
+
+Accept proposal (a). Increase `max_length` to 30.
+
+---
+
+### FQ-3. New StorageHotel `description` field: full specification needed
+
+The user added a `description` field to StorageHotel in `storage-hotel.prp.md`. This field currently appears only in the StorageHotel field list and is not documented elsewhere.
+
+To propagate this field correctly, the following details are needed:
+
+**(a)** Field type and constraints: what Django field type? Proposal: `TextField(blank=True, default="")` -- a free-text field with no length limit, optional, defaults to empty string. Or `CharField(max_length=500, blank=True, default="")` if a length limit is preferred.
+
+**(b)** Is this field StorageHotel-specific, or should it be added to `ResourceModel` so all resource types inherit it? VirtualMachine might also benefit from a description field in the future.
+
+**(c)** Should `description` appear in the canonical `resource_snapshot` schema for StorageHotel? If the purpose is "for invoice purposes later on (PDF generation)," then capturing it in the snapshot ensures the description at billing time is preserved even if the resource's description changes later.
+
+**(d)** Should `description` be writable via the API? If yes, it needs to be added to the writable fields list in `004-resource-api.prp.md` for both `POST` (creation) and `PATCH` (update).
+
+**(e)** Is `description` patchable after creation? Proposal: yes, same as `name`.
+
+**(f)** Naming consideration: `ResourceModel` already has a `name` field. `InvoiceLine` also has a `description` field (the frozen human-readable label). Adding a `description` field on StorageHotel creates a naming overlap -- `InvoiceLine.description` and `StorageHotel.description` are different concepts. Should the StorageHotel field use a different name (e.g., `resource_description`, `notes`, `detail`) to avoid confusion? Or is `description` clear enough in context?
+
+**Decision:**
+
+Rename the field to `description_resource`. It belongs on `ResourceModel` (not StorageHotel-only) so all resource types inherit it. Field type: `CharField(max_length=200, blank=True, default="")` -- optional. It must appear in `resource_snapshot` for all resource types. It is API writable on creation and patchable after creation. Update all files where this field is worth mentioning.
+
+---
