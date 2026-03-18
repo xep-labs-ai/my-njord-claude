@@ -19,6 +19,8 @@ This is consistent with the precedence rule from round 12 L-2 but adds an explic
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### H-2. `003-invoice-api.prp.md` description examples show fallback format even when `name` is non-blank
@@ -30,6 +32,8 @@ Round 11 M-1 updated `resource_snapshot.name` to show realistic names, but the `
 Proposal: change `"description": "StorageHotel #101"` to `"description": "storage-primary"` in the generate, detail, and finalize response examples in `003-invoice-api.prp.md`. The fallback `"StorageHotel #101"` should only appear in examples where `name` is blank or null.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -46,6 +50,8 @@ Three options:
 - **(c)** Keep the current behavior and accept that RETIRED resources are immediately soft-deleted. Update H-2 to clarify that ingestion for RETIRED resources requires using the `billing_objects` manager for resource lookup.
 
 **Decision:**
+
+Accept proposal a
 
 ---
 
@@ -67,6 +73,36 @@ Two options:
 
 **Decision:**
 
+Following block is the answer:
+
+```
+Do not treat 99999 as a hard limit.
+
+Decision:
+
+Keep the global never-resetting sequence and allow `NNNNN` to grow beyond 5 digits.
+
+Reasoning:
+
+- the sequence is global and monotonic by design
+- PostgreSQL sequences do not have a practical upper bound
+- enforcing a 5-digit limit would introduce rollover and uniqueness problems
+- invoice numbers should never be reused or wrapped in a financial system
+
+Rule:
+
+`NNNNN` is zero-padded to at least 5 digits, but may exceed 5 digits as the sequence grows.
+
+Examples:
+INV-2026-01-00001
+INV-2026-01-99999
+INV-2026-02-100000
+
+Documentation update:
+
+Clarify that 5 digits is a minimum display width, not a maximum constraint.
+```
+
 ---
 
 ## MEDIUM
@@ -79,6 +115,8 @@ Proposal: change the list response example `total_amount` from `null` to a reali
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### M-2. `deleted_at` missing from StorageHotel and VirtualMachine field lists in `002-resource-models.prp.md`
@@ -88,6 +126,12 @@ The StorageHotel field list (line 229) and VirtualMachine field list (line 313) 
 Proposal: add `deleted_at` to both the StorageHotel and VirtualMachine field lists in `002-resource-models.prp.md`, consistent with the resource-specific PRPs and the "all fields" header.
 
 **Decision:**
+
+Following block is the answer:
+
+```
+Many of these fields are duplicated info from the resources defined in `docs/PRP/resources/*` so I decided to remove them from `002-resource-models.prp.md` to avoid redundancy and potential inconsistencies. But these resources are still mentioned under the "Billable resources" section in `002-resource-models.prp.md`.
+```
 
 ---
 
@@ -106,6 +150,8 @@ Proposal: update all `dimension_costs` examples across all four documents to sho
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### M-4. DecimalField response examples show integer-like values but DRF serializes at full precision
@@ -115,6 +161,35 @@ API response examples in `004-resource-api.prp.md` show DecimalField values with
 Proposal: update the response examples to show the values at the field's configured precision: `"5000.0000"` for `quota_raw`, `"65536.00"` for `ram_mb`, `"500.00"` for `disks_total_gb`. This prevents implementers from being surprised by the actual DRF serialization output.
 
 **Decision:**
+
+Following block is the answer:
+
+```
+Accept the proposal.
+
+Decision:
+
+Update the API response examples to reflect the actual DRF serialization output, while keeping DecimalField precision unchanged in the models.
+
+Reasoning:
+
+- DRF serializes DecimalField values using their configured `decimal_places`
+- the current examples are misleading because they omit trailing zeros
+- even if most values are integers in practice, fractional values may appear due to normalization and pricing calculations
+- keeping decimals avoids future breaking changes
+
+Action:
+
+Update examples in `004-resource-api.prp.md`:
+
+"quota_raw": "5000.0000"
+"ram_mb": "65536.00"
+"disks_total_gb": "500.00"
+
+Add clarification:
+
+Decimal fields are serialized with fixed precision. Trailing zeros are expected even when the value is conceptually an integer.
+```
 
 ---
 
@@ -127,6 +202,8 @@ InvoiceLine rows are created during invoice generation and deleted/recreated dur
 Proposal: add `created_at` to the InvoiceLine field list in `002-resource-models.prp.md` and note that InvoiceLine inherits from `CreatedAtModel` (append-only, no `updated_at`).
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -143,6 +220,43 @@ Proposal: **(a)** is cleaner architecturally, but the boundary should be explici
 
 **Decision:**
 
+```
+Choose option (a).
+
+Decision:
+
+Keep `apps/ingest/` and explicitly document the app boundary.
+
+Recommended v1 ownership:
+
+- `apps/billing/` owns the core billing domain:
+  - resources
+  - daily snapshot models
+  - pricing models
+  - invoice models
+  - billing engine services
+
+- `apps/ingest/` owns ingestion-facing behavior:
+  - ingestion API views
+  - ingestion serializers
+  - ingestion orchestration/services
+  - ingestion event models
+  - request/audit handling for inbound snapshot data
+
+Reasoning:
+
+- this preserves a clean architectural separation without over-complicating v1
+- daily snapshot models should remain in `apps/billing/` because they are canonical billing state and are used directly by the billing engine
+- ingestion event models and ingestion API logic fit naturally in `apps/ingest/` because they describe how data enters the system, not the billing domain itself
+
+Documentation update:
+
+Add a short app-boundary note to `000-system-overview.prp.md` clarifying that:
+- `apps/billing/` owns durable billing state and billing logic
+- `apps/ingest/` owns ingestion workflows and ingestion audit/event handling
+- daily snapshot models stay in `apps/billing/`
+```
+
 ---
 
 ### M-7. `TESTING_TEMPLATES.md` RT-30 says "fails for that resource" but failure is global/fatal
@@ -152,6 +266,8 @@ RT-30 says "invoice generation fails for that resource" and "failure explains no
 Proposal: update RT-30 to say "invoice generation fails entirely (the entire transaction is rolled back)" instead of "fails for that resource." Add a reference to the fatal-error semantics from `BILLING.md`.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -165,6 +281,8 @@ Proposal: add a brief format note to the Invoice metadata section in `002-resour
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ## LOW
@@ -176,6 +294,8 @@ Proposal: add a brief format note to the Invoice metadata section in `002-resour
 Proposal: rephrase to: "...those days produce a zero-cost `InvoiceDailyCost` row with `autofilled=false` (zero is assigned as a fallback because no snapshot data exists, not because a prior value was carried forward). See Force Mode behavior."
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -194,6 +314,8 @@ Proposal: add a new test template RT-35 for force-mode zero-cost billing, coveri
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### L-3. StorageHotel missing explicit Autofill Rule section
@@ -204,8 +326,16 @@ Proposal: add an "Autofill Rule" section to `storage-hotel.prp.md` stating: "Whe
 
 **Decision:**
 
+Accept proposal
+
 ---
+
+### New own clarification
+
+A new field was added to StorageHotel in file `docs/PRP/resources/storage-hotel.prp.md` named "description". This field is not mentioned in any other file, and I want that you check if it is necessary to add it to other files. 
+
+The reason for this field is that StorageHotel have a requirement to be able to have their own description, for invoice purposes later on -probably when creating PDF-
 
 ## Follow-Up Questions
 
-No follow-up questions required for this round. H-3 and H-4 require design decisions from the user before fixes can be applied. All other items include proposed fixes that can be applied once decisions are recorded.
+You are allowed to ask follow up questions.
