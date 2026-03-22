@@ -97,6 +97,14 @@ Prefer small, deterministic changes over large refactors.
 
 There are some files that are meant to be human-facing or source-of-truth documentation that Claude should not read or check for consistency. These include everything under `.archive/` and `.claude/.archive/
 
+## Clarification File Archiving Rule
+
+Clarification files live under `.claude/docs/questions/`.
+
+When a new clarification file is added, automatically move all files from that directory to `.claude/.archive/docs/questions/` **except the two most recent ones** (by filename, alphabetical order descending). Keep only the last two clarification files in `.claude/docs/questions/` at any time.
+
+This rule applies whenever a new clarification file is created or when explicitly instructed to archive.
+
 ## Claude Documentation Routing Rule
 
 Claude documentation lives under:
