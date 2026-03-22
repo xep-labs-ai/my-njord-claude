@@ -26,6 +26,8 @@ Invoice.total_amount = round(sum(InvoiceLine.total_cost), 2, ROUND_HALF_UP)
 
 **Decision:**
 
+Accept proposal and check for more inconsistencies with these field names across all documents.
+
 ---
 
 ### O-2. `BILLING.md` description construction rule contradicts the PRP — wrong format
@@ -45,6 +47,8 @@ Proposal: update `BILLING.md` step 9 to match the PRP:
 > Set `InvoiceLine.description` from the resource's `name` if present and non-blank; otherwise use `{ResourceType} #{resource_id}` as a fallback (e.g., `StorageHotel #101`). Never recomputed from the live resource after generation.
 
 **Decision:**
+
+Accept proposal and check for any other contradictions in description construction rules across documents.
 
 ---
 
@@ -72,6 +76,8 @@ Two options:
 Proposal: **(a)** — consistent with the round 14 decision that said "new field `namespace` was added to ResourceModel."
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -106,6 +112,8 @@ Proposal: remove the duplicate `quota_unit` line and add the missing comma. Corr
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-5. Missing comma in VirtualMachine `resource_snapshot` schema
@@ -128,6 +136,8 @@ Proposal: fix all missing commas in all occurrences of this schema in both files
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ## MEDIUM
@@ -146,6 +156,8 @@ Proposal: align all examples to use `"KIB"` to match the API spec examples in `0
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-7. Duplicate `**Query parameters:**` header in VirtualMachine list endpoint
@@ -156,6 +168,8 @@ Proposal: merge the two `**Query parameters:**` blocks into a single block listi
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-8. VirtualMachine list endpoint missing `name` filter — asymmetry with StorageHotel
@@ -165,6 +179,8 @@ StorageHotel list endpoint includes `name` as a query parameter filter. VirtualM
 Proposal: add `name` (optional, string) as a query parameter to the VirtualMachine list endpoint.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -179,6 +195,8 @@ Proposal: add `namespace` (optional, string) as a query parameter to both the St
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-10. StorageHotel list response example missing `namespace` field
@@ -188,6 +206,8 @@ Proposal: add `namespace` (optional, string) as a query parameter to both the St
 Proposal: add `"namespace": "uio_fs01"` (or equivalent) to the StorageHotel list response example.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -205,6 +225,8 @@ Proposal: update `BILLING.md` to match the PRP:
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-12. Multiple JSON examples have missing commas in `002-resource-models.prp.md` and `003-invoice-api.prp.md`
@@ -217,6 +239,8 @@ Several `resource_snapshot` JSON blocks inside InvoiceLine metadata examples are
 Proposal: fix all missing commas in JSON examples across both files. No behaviour change; documentation correctness only.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -234,6 +258,8 @@ Two options:
 Proposal: **(b)** with `blank=True, default=""` — non-nullable to reflect that generation always produces a value, but with blank allowed for edge cases.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -256,6 +282,8 @@ Proposal: add a concrete example for a force-mode zero-cost StorageHotel row:
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-15. `001-billing-engine.prp.md` uses field name `amount` instead of `daily_cost` for force-mode zero-cost row
@@ -269,6 +297,8 @@ The actual field name on `InvoiceDailyCost` is `daily_cost` (per `002-resource-m
 Proposal: change `amount` to `daily_cost` in that line.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -285,6 +315,8 @@ Since `namespace` is part of VirtualMachine's uniqueness constraint `(namespace,
 Proposal: clarify intent. If `namespace` is an organizational grouping that operators might reassign, **(a)**. If it is part of resource identity (like `provisioner`), **(b)** or **(c)**.
 
 **Decision:**
+
+Accept proposal a
 
 ---
 
@@ -304,6 +336,8 @@ Proposal: update `BILLING.md` to set `autofilled=true` for force-mode zero-cost 
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-19. `autofilled` semantic overloading needs a clarifying note in `001-billing-engine.prp.md`
@@ -321,6 +355,8 @@ Proposal: add a clarifying note near the `autofilled` documentation in `001-bill
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-20. `BILLING.md` "fail for that resource" wording contradicts "entire invoice generation fails"
@@ -332,3 +368,5 @@ Proposal: add a clarifying note near the `autofilled` documentation in `001-bill
 Proposal: change "fail for that resource" to "fail the entire invoice generation" to match the PRP and the paragraph immediately below it.
 
 **Decision:**
+
+Accept proposal
