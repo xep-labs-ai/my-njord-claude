@@ -35,7 +35,7 @@ Detailed product rules live in docs/PRP/.
 
 ## Implementation Status
 
-Design and specification is complete. PRPs (docs/PRP/), clarification rounds 1-12, and project tooling (pyproject.toml) all exist.
+Design and specification is complete. PRPs (docs/PRP/), clarification rounds 1-13, and project tooling (pyproject.toml) all exist.
 
 No Django application code has been written yet. The task ahead is to build the Django app from the PRPs.
 

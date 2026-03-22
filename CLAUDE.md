@@ -93,6 +93,10 @@ Prefer small, deterministic changes over large refactors.
 
 ---
 
+## What claude must not read or check
+
+There are some files that are meant to be human-facing or source-of-truth documentation that Claude should not read or check for consistency. These include everything under `.archive/` and `.claude/.archive/
+
 ## Claude Documentation Routing Rule
 
 Claude documentation lives under:

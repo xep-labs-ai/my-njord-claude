@@ -17,6 +17,8 @@ Proposal: add a `**Superseded:**` marker to Q3 and Q8 in `clarifications.md` sta
 
 **Decision:**
 
+Do nothing. I think that the best would be to move previous review-clarifications to an archive dir and exclude it from CLAUDE.md to be read. It is going to be just an archive for human reading, not for CLAUDE
+
 ---
 
 ### O-2. Force-mode zero-cost `InvoiceDailyCost` metadata shape unspecified
@@ -39,6 +41,8 @@ Proposal: **(a)** is the safest and most consistent. It preserves the metadata s
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ## MEDIUM
@@ -52,6 +56,8 @@ The issue is presentation: the proposal text is prominent and detailed, while th
 Proposal: add a brief clarifying note after the answer in RQ7: "Note: option (b) was chosen, overriding the proposal. Sum all `InvoiceLine.total_cost` values at full precision, then round once at `Invoice.total_amount` to 2 decimal places using `ROUND_HALF_UP`."
 
 **Decision:**
+
+Do nothing. I think that the best would be to move previous review-clarifications to an archive dir and exclude it from CLAUDE.md to be read. It is going to be just an archive for human reading, not for CLAUDE
 
 ---
 
@@ -72,6 +78,8 @@ Invoice.total_amount = round(sum(InvoiceLine.total_cost), 2, ROUND_HALF_UP)
 
 **Decision:**
 
+Accept proposal and document
+
 ---
 
 ### O-5. `BILLING.md` duplicate prevention section missing advisory lock cross-reference
@@ -83,6 +91,8 @@ An implementer reading only `BILLING.md` would not know about the advisory lock 
 Proposal: add a brief cross-reference in `BILLING.md`'s duplicate prevention section: "Concurrency control uses a PostgreSQL advisory lock keyed on `(billing_account, period_start, period_end, selection_scope)` within the invoice generation transaction. See `001-billing-engine.prp.md` for the full concurrency specification."
 
 **Decision:**
+
+Accept proposal and document
 
 ---
 
@@ -112,6 +122,8 @@ Proposal: add field type specifications to both ingestion event models in their 
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-7. `review-clarifications-3.md` BQ6 says `make_invoice=False` returns 400 — PRP says 422
@@ -121,6 +133,8 @@ BQ6 in `review-clarifications-3.md` proposed returning 400 when `make_invoice = 
 Proposal: add a `**Superseded:**` marker to BQ6 in `review-clarifications-3.md` stating: "Superseded. The status code for `billing_account_not_billable` was changed to 422 Unprocessable Entity. See `003-invoice-api.prp.md` and `API.md` error code tables."
 
 **Decision:**
+
+Do nothing. I think that the best would be to move previous review-clarifications to a history-review-clarifications/ dir and exclude it from CLAUDE.md to be read. It is going to be just an archive for me, not for CLAUDE
 
 ---
 
@@ -137,6 +151,8 @@ Proposal: **(a)**. Both resource types inherit the same base fields and an API c
 
 **Decision:**
 
+Answer I edited and added option (a) myself
+
 ---
 
 ## LOW
@@ -151,6 +167,8 @@ Proposal: change `"cpu_count": "8"` to `"cpu_count": 8` (JSON integer, no quotes
 
 **Decision:**
 
+Accept proposal and check for similar issues in other examples with the Integer field
+
 ---
 
 ### O-10. `BILLING.md` draft replacement does not mention CASCADE delete behavior
@@ -160,6 +178,8 @@ Proposal: change `"cpu_count": "8"` to `"cpu_count": 8` (JSON integer, no quotes
 Proposal: add a brief note to the draft replacement section in `BILLING.md`: "Deleting the draft Invoice automatically cascades to its InvoiceLine and InvoiceDailyCost rows via `on_delete=CASCADE` (see `002-resource-models.prp.md`)."
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -171,6 +191,8 @@ Proposal: add a brief note to the ResourcePrice section in `002-resource-models.
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-12. `BILLING.md` Daily-level snapshot field list omits `autofilled`
@@ -180,6 +202,8 @@ Proposal: add a brief note to the ResourcePrice section in `002-resource-models.
 Proposal: add `autofilled` (boolean, dedicated column — see dual-storage strategy) to the Daily-level snapshot field list in `BILLING.md`.
 
 **Decision:**
+
+accept proposal
 
 ---
 
@@ -191,6 +215,8 @@ Proposal: change "clarification rounds 1-12" to "clarification rounds 1-13" or r
 
 **Decision:**
 
+Do nothing I updated it manually.
+
 ---
 
 ### O-14. `BILLING.md` Example Shared Workflow omits `InvoiceLine.description` construction
@@ -200,6 +226,41 @@ Proposal: change "clarification rounds 1-12" to "clarification rounds 1-13" or r
 Proposal: add a sub-step under step 9 in the workflow: "set `InvoiceLine.description` from the resource's `name` (or PascalCase fallback if blank) — see Line-level snapshot section."
 
 **Decision:**
+
+Accept proposal
+
+---
+
+
+# New own implementations
+
+## New querysets and filter rules
+
+- All querysets and filters related to Uniqueness and or Constraints must be able to be obtained through equal exact match through API endpoints and through the ORM.
+
+## StorageHotel
+
+- filesystem_identifier was removed as a field and in documentation. The reason is the new field below
+- new field `namespace` was added to StorageHotel and UNIQUE and constraint is going to be on `(namespace, name)` instead of `filesystem_identifier` to allow multiple StorageHotel resources with the same name but different namespaces. The `namespace` field is a string that can be used to group or categorize StorageHotel resources (e.g., by project, team, or environment). This change allows for more flexible resource organization while maintaining uniqueness within each namespace.
+
+- Claude must fix the PRPs, documentation, and any related code to reflect the removal of `filesystem_identifier` and the addition of `namespace` with the new uniqueness constraint.
+- Claude must add both of them in querysets, filters, and API endpoints where relevant, and if necessary in metadata.
+
+
+## VirtualMachine
+
+- new field `namespace` was added to VirtualMachine and UNIQUE and constraint is going to be on `(namespace, provisioner, name)` instead of just `name` to allow multiple VirtualMachine resources with the same name but different namespaces. The `namespace` field is a string that can be used to group or categorize VirtualMachine resources (e.g., by project, team, or environment). This change allows for more flexible resource organization while maintaining uniqueness within each namespace.
+
+- Claude must fix the PRPs, documentation, and any related code to reflect the addition of `namespace` with the new uniqueness constraint.
+- Claude must add both of them in querysets, filters, and API endpoints where relevant, and if necessary in metadata.
+
+
+## ResourceModel
+
+- new field `namespace` was added to ResourceModel this is a string that can be used to group or categorize resources (e.g., by project, team, or environment). This change allows for more flexible resource organization while maintaining uniqueness within each namespace. This is an optional field for ResourceModel, but for example for StorageHotel and VirtualMachine, it is required field as mentioned below.
+
+Claude must fix the PRPs, documentation, and any related code to reflect the addition.
+
 
 ---
 
