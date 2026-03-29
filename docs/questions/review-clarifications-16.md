@@ -21,6 +21,8 @@ Proposal: update RT-35 in `TESTING_TEMPLATES.md` to say `autofilled = true` for 
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-2. `001-billing-engine.prp.md` zero-cost forced row description uses wrong StorageHotel and VirtualMachine field names
@@ -39,6 +41,8 @@ Proposal: replace the parenthetical with correct normalized usage dimension name
 
 **Decision:**
 
+The right value is `quota_raw` instead of quota_bytes for StorageHotel
+
 ---
 
 ### O-3. `BILLING.md` "Missing Data Behavior Matrix" still says "fail for that resource" — round 15 O-20 partially applied
@@ -50,6 +54,8 @@ Round 15 O-20 was accepted to change "fail for that resource" to "fail the entir
 Proposal: change the remaining "fail for that resource" occurrence in the Missing Data Behavior Matrix to "fail the entire invoice generation."
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -64,6 +70,8 @@ The ResourceModel section now has two separate "Field types:" headers — an art
 Proposal: merge the two "Field types:" blocks into a single list covering all ResourceModel fields: `billing_account`, `name`, `namespace`, `description_resource`, `status`, `active_from`, `active_to`, `deleted_at`.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -82,6 +90,8 @@ Proposal: pick one contract and document it consistently. Since the example alre
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-6. `BILLING.md` Invoice Total Step 2 omits `ROUND_HALF_UP` rounding
@@ -99,6 +109,8 @@ Proposal: update Step 2 to:
 > Sum all `InvoiceLine.total_cost` values, then round to 2 decimal places using `ROUND_HALF_UP` → produces `Invoice.total_amount`
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -125,6 +137,8 @@ Proposal: add a VirtualMachine zero-cost forced row metadata example immediately
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-8. `namespace` appears as top-level key in VirtualMachine InvoiceLine metadata but is not documented as intentional redundancy
@@ -141,6 +155,8 @@ Two options:
 Proposal: **(a)** — `namespace` is a natural grouping/lookup key and including it at the top level is consistent with how `provisioner` is treated.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -159,6 +175,8 @@ Proposal: **(a)** for consistency, since both resources now have `namespace` as 
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-10. StorageHotel PATCH "Not patchable after creation:" header has no content — misleading
@@ -171,6 +189,8 @@ Proposal: remove the empty "Not patchable after creation:" header entirely. If n
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ## LOW
@@ -182,6 +202,8 @@ Proposal: remove the empty "Not patchable after creation:" header entirely. If n
 Proposal: change "clarification rounds 1-13" to just "clarification rounds" generically to avoid perpetual staleness.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -196,6 +218,8 @@ Proposal: add a brief cross-reference in `BILLING.md`'s resource selection secti
 > Valid resource types are defined in the Resource Type Registry (`001-billing-engine.prp.md`). Unknown `resource_type` values must be rejected with 400 Bad Request at both invoice generation and `ResourcePrice` creation.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -214,6 +238,8 @@ Proposal: remove or replace the vague summary with a forward reference: "See det
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-15. `TESTING_TEMPLATES.md` examples all use `/ 365` with no note about leap year variability
@@ -228,6 +254,8 @@ Proposal: add a note near the first formula in `TESTING_TEMPLATES.md`:
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-16. `003-invoice-api.prp.md` `missing_snapshot` error example shows only one resource — multi-resource case undocumented
@@ -240,6 +268,47 @@ Proposal: add a note after the example: "When multiple resources have missing da
 
 **Decision:**
 
+Following block is the decision:
+
+```
+Accept the proposal, with a stronger rule.
+
+Decision:
+
+`details` must always be a list, even when only one resource is affected.
+
+Reasoning:
+
+- invoice generation operates over multiple resources, so the error format should be consistent
+- returning a list avoids conditional parsing logic on the client side
+- it ensures the response shape is stable regardless of whether one or many resources have missing data
+
+Documentation update:
+
+Update the 422 example to:
+
+{
+  "code": "missing_snapshot",
+  "message": "Invoice generation failed because one or more required billing snapshots were missing.",
+  "details": [
+    {
+      "resource_type": "storage_hotel",
+      "resource_id": 101,
+      "missing_dates": ["2026-01-16", "2026-01-17"]
+    },
+    {
+      "resource_type": "virtual_machine",
+      "resource_id": 205,
+      "missing_dates": ["2026-01-18"]
+    }
+  ]
+}
+
+Add rule:
+
+"`details` is always a list of affected resources. When multiple resources have missing data, each resource is represented as an element in the list."
+```
+
 ---
 
 ### O-18. `002-resource-models.prp.md` Invoice `incomplete` field type not listed in the Field types section
@@ -251,6 +320,8 @@ The Invoice field list includes `incomplete`. It is described in a paragraph as 
 Proposal: add `incomplete` to the Invoice "Field types:" section: `incomplete` — BooleanField(default=False). `True` when one or more resources were billed at zero due to missing data under force mode.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -282,6 +353,8 @@ Proposal: specify `max_length` for every CharField. Suggested values:
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-20. `customer_number` conditional uniqueness enforcement mechanism unspecified
@@ -303,6 +376,8 @@ Without specifying this, an implementer may use `unique=True` which adds an unne
 Proposal: specify the `UniqueConstraint` with `condition` approach in the PRP.
 
 **Decision:**
+
+Accept and document proposal
 
 ---
 
@@ -331,6 +406,43 @@ Exclusion constraint requires:
 
 **Decision:**
 
+Following block is the decision:
+
+```
+Decision:
+
+Use Django/service-layer enforcement as the authoritative v1 mechanism.
+
+Recommended approach:
+
+- remove the PostgreSQL `daterange` exclusion-constraint requirement from the PRPs
+- enforce overlap prevention in the pricing service layer
+- perform the create/update inside a transaction
+- lock the relevant pricing scope before checking for overlaps and saving
+
+Suggested v1 implementation rule:
+
+When creating or updating a `ResourcePrice`, the service must:
+
+1. start a transaction
+2. lock the relevant pricing scope (for example the parent `PriceList` row via `select_for_update()`)
+3. query existing rows for the same:
+   - `price_list`
+   - `resource_type`
+   - `pricing_dimension`
+4. reject the write if any overlapping effective date range exists
+5. otherwise persist the row
+
+Additional notes:
+
+- keep model-level `clean()` validation as a defensive layer
+- keep serializer/API validation for clear error messages
+- document clearly that service-layer enforcement is authoritative in v1
+- note that this is weaker than a DB exclusion constraint, but avoids reliance on PostgreSQL extensions you may not control
+
+This is the best practical compromise if deployability matters more than using PostgreSQL-specific constraint features.
+```
+
 ---
 
 ### O-22. `namespace` field constraints at concrete model level underspecified
@@ -348,6 +460,8 @@ Proposal: specify for both resources:
 - Uniqueness constraints: use `UniqueConstraint` with `condition=Q(deleted_at__isnull=True)` so soft-deleted resources do not block recreation
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -368,6 +482,108 @@ lock_key = int(hashlib.sha256(key_str.encode()).hexdigest()[:16], 16) % (2**63)
 
 **Decision:**
 
+Following block is the answer, CLAUDE ARCHITECT must update all the files to reflect this decision. CLAUDE must ask questions or raise concerns if any part of the decision is unclear or if there are edge cases that need to be addressed.
+
+```
+Decision: Remove PostgreSQL advisory locks from the v1 PRP.
+
+Reasoning:
+
+- `selection_scope` + `selection_fingerprint` already define the exact invoice-generation identity.
+- The advisory lock key is broader than the real identity and does not solve the documented cross-scope overlap problem.
+- Advisory locks add PostgreSQL-specific complexity without materially improving the core invariant we need in v1.
+- For this project, exact duplicate prevention should be implemented through explicit invoice identity, database uniqueness for drafts, and service-layer transactional checks.
+
+Final approach:
+
+1. Keep exact invoice identity as:
+   - billing_account
+   - period_start
+   - period_end
+   - selection_scope
+   - selection_fingerprint
+
+2. Keep `selection_fingerprint` as the SHA-256 lowercase hex digest of the canonical selection JSON payload.
+
+3. Enforce:
+   - at most one DRAFT invoice per exact identity
+   - matching FINALIZED invoice blocks regeneration entirely
+
+4. Matching draft behavior:
+   - if `force=false`, fail
+   - if `force=true`, recompute and overwrite the existing matching draft atomically
+
+5. Do not use advisory locks in v1.
+
+6. Clarify the v1 limitation:
+   - v1 prevents exact duplicate generation only
+   - v1 does not prevent semantic overlap across different selection identities
+   - operators must not finalize overlapping invoices
+
+Implementation note:
+
+- Use transaction boundaries, normal row locking where needed (`select_for_update()` on the matching draft row), and a conditional unique database constraint for draft invoice identity.
+- No advisory lock key computation algorithm is required.
+
+
+---
+
+Important things you should still consider
+
+These are the vital follow-up questions you should settle now.
+
+1. Should selection_scope be duplicated inside the fingerprint payload?
+
+Yes. Keep it there.
+
+Even though it is also a top-level DB field, including it in the canonical payload is good because:
+
+it makes the fingerprint self-contained
+it avoids ambiguity
+it protects against implementation mistakes
+2. Should fingerprint include flags like force or autofill_missing_days?
+
+Usually no for invoice identity.
+
+Those affect behavior, not the selected resource set.
+
+Your current model is reasonable:
+
+identity = what is being invoiced
+metadata flags = how generation behaved
+
+That said, if two runs with same identity but different autofill behavior are supposed to be treated as different drafts, then you would need them in identity.
+From your current wording, I do not think you want that.
+
+3. Should today / provisional affect identity?
+
+No.
+
+Those are generation-time attributes, not selection identity.
+
+4. Should finalized invoices be blocked only by exact identity or also by overlap?
+
+In v1, your docs currently imply:
+
+exact identity is blocked formally
+overlap is blocked operationally
+
+That is acceptable, but you should state it very clearly.
+
+5. Should draft regeneration overwrite the same invoice row?
+
+Yes, recommended.
+
+That simplifies:
+
+audit
+references
+daily rows refresh
+transaction logic
+
+```
+
+
 ---
 
 ### O-24. Invoice number sequence implementation not specified
@@ -384,6 +600,69 @@ Proposal: specify that a dedicated PostgreSQL sequence is the required approach.
 
 **Decision:**
 
+Following block is the decision:
+
+```
+Decision: Invoice number generation strategy
+
+We will NOT use `SELECT MAX(...) FOR UPDATE` and we will NOT derive the invoice number from `invoice.id`.
+
+Two reasons:
+- `SELECT MAX(...)` is concurrency-prone and pushes locking complexity into application logic.
+- `invoice.id` is an internal DB identifier and must not be coupled to a business-visible invoice number.
+
+Final approach:
+
+- `invoice_number` is a separate field from `id`
+- it is assigned only at FINALIZATION time
+- it is immutable and unique
+- gaps are acceptable and numbers must never be reused
+
+Generation strategy:
+
+- Format: `INV-YYYY-mm-NNNNN`
+- `YYYY-mm` comes from `finalized_at`
+- `NNNNN` comes from a dedicated global PostgreSQL sequence (monotonic, not per-month)
+
+Implementation rules:
+
+- A dedicated PostgreSQL sequence must be used for the numeric suffix
+- Do NOT use `SELECT MAX(...)`
+- Sequence is consumed inside the finalization transaction
+- `invoice_number` has a unique constraint
+
+Invoice model field:
+
+```python
+invoice_number = models.CharField(
+    max_length=32,
+    unique=True,
+    null=True,
+    blank=True,
+    db_index=True,
+    help_text="Immutable invoice identifier assigned at finalization (format: INV-YYYY-mm-NNNNN)"
+)
+```
+
+This Field should be added in all documents where the Invoice model is defined somewhat.
+
+Service-layer responsibility:
+
+- The service layer generates and assigns the invoice number
+- Formatting must be centralized and deterministic
+
+Helper functions:
+
+```python
+def _invoice_number_prefix(finalized_at: datetime) -> str:
+    return finalized_at.strftime("INV-%Y-%m-")
+
+
+def _format_invoice_number(finalized_at: datetime, sequence_value: int) -> str:
+    return f"{_invoice_number_prefix(finalized_at)}{sequence_value:05d}"
+
+```
+
 ---
 
 ### O-25. Autofill carry-forward search crosses period boundary — not explicitly permitted
@@ -395,6 +674,8 @@ Autofill uses "the last known valid billing snapshot before the missing day." Th
 Proposal: add an explicit statement: "Autofill searches backward in time without a period boundary. A snapshot from before `period_start` may be carried forward into the billing period. The search uses the `billing_objects` manager."
 
 **Decision:**
+
+Accept and document proposal
 
 ---
 
@@ -416,6 +697,8 @@ Proposal: specify validation rules:
 
 **Decision:**
 
+Accept and document proposal
+
 ---
 
 ### O-27. `all_resources` and `explicit_resources` scope: billing engine manager not specified
@@ -429,6 +712,8 @@ For `explicit_resources` ownership validation: if the default manager is used, a
 Proposal: add an explicit statement: "The billing engine uses `billing_objects` manager for all resource queries during invoice generation. The default manager is only for CRUD API endpoints. For explicit resource ownership validation, `billing_objects` is used so that soft-deleted (historically billable) resources can be explicitly selected."
 
 **Decision:**
+
+Accept and document proposal
 
 ---
 
@@ -460,6 +745,8 @@ Proposal: add the check constraint to the Invoice model spec, or add a note that
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-30. `selection_scope` not defined as a formal `TextChoices` — any string accepted
@@ -471,6 +758,8 @@ Proposal: add the check constraint to the Invoice model spec, or add a note that
 Proposal: define a `SelectionScope` `TextChoices` class (`all_resources`, `resource_types`, `explicit_resources`) and add it as `choices` on the field.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -484,6 +773,8 @@ Proposal: add a note that serializers for `BillingAccount` and `PriceList` must 
 
 **Decision:**
 
+All validations should be done at the service layer.
+
 ---
 
 ### O-32. Ingestion event models — uniqueness constraint intent not documented
@@ -495,6 +786,8 @@ Proposal: add a note that serializers for `BillingAccount` and `PriceList` must 
 Proposal: add an explicit note: "Ingestion event models intentionally have no uniqueness constraint. They are append-only audit logs. Idempotency is enforced by the snapshot model's `(resource, date) UNIQUE` constraint, not by the event model."
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -515,6 +808,8 @@ Proposal: add a "Required Indexes" section to `002-resource-models.prp.md` speci
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-34. Invoice duplicate prevention unique constraint not formally specified
@@ -526,6 +821,8 @@ The spec says "at most one draft invoice per `(billing_account, period_start, pe
 Proposal: add to the Invoice model constraints: `UniqueConstraint(fields=["billing_account", "period_start", "period_end", "selection_scope", "selection_fingerprint"], name="unique_invoice_selection")`.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -546,6 +843,8 @@ Proposal: specify Django `CheckConstraint` for each:
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-36. `Invoice.currency` derivation during generation not specified
@@ -558,6 +857,8 @@ Proposal: clarify that in v1, `Invoice.currency` is always hardcoded to `"NOK"`.
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-37. Soft-delete invariant `active_to <= date(deleted_at)` has timezone complexity
@@ -569,6 +870,8 @@ Proposal: clarify that in v1, `Invoice.currency` is always hardcoded to `"NOK"`.
 Proposal: specify that this invariant is enforced only at the service layer (in the soft-delete service), not as a database check constraint. The service must use `Europe/Oslo` timezone: `active_to <= deleted_at.astimezone(ZoneInfo("Europe/Oslo")).date()`.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -584,6 +887,8 @@ Proposal: clarify whether zero is allowed. If not, add a check constraint `price
 
 **Decision:**
 
+Zero is allowed
+
 ---
 
 ### O-39. `discount_price_per_unit_year < price_per_unit_year` cross-field validation missing
@@ -595,6 +900,8 @@ The spec does not require `discount_price < price`. A misconfigured "discount" g
 Proposal: add cross-field validation at the service layer and as a check constraint: `discount_price_per_unit_year < price_per_unit_year` when both are set.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -611,6 +918,8 @@ Proposal: specify the source. If from the caller, add it as an optional field to
 
 **Decision:**
 
+Option c; Choose a simple generation and document it
+
 ---
 
 ### O-41. `raw_payload` content definition missing
@@ -622,6 +931,8 @@ Both ingestion event models have `raw_payload: JSONField, required` but what goe
 Proposal: specify that `raw_payload` stores the exact JSON body sent by the client before any validation or normalization, for audit reproducibility.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -640,6 +951,8 @@ Proposal: specify default ordering for each list endpoint:
 
 **Decision:**
 
+Accept proposal. Resources are organized by id
+
 ---
 
 ### O-43. `active_from`/`active_to` filter semantics on resource list endpoints ambiguous
@@ -656,6 +969,8 @@ Proposal: clarify the semantics. Option (a) is simpler to implement. If (a), ren
 
 **Decision:**
 
+Option a. Accept proposal
+
 ---
 
 ### O-44. Default pagination page size not specified
@@ -667,6 +982,8 @@ Proposal: clarify the semantics. Option (a) is simpler to implement. If (a), ren
 Proposal: specify a default page size (e.g., 50) and a maximum page size (e.g., 200) in the API spec.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -680,6 +997,8 @@ Proposal: add: "InvoiceDailyCost inherits from `CreatedAtModel` (append-only, no
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-46. `deleted_at` missing from ResourceModel "Field types:" section
@@ -691,6 +1010,8 @@ Proposal: add: "InvoiceDailyCost inherits from `CreatedAtModel` (append-only, no
 Proposal: add `deleted_at` to the Field types section: `deleted_at` — DateTimeField, nullable (null = not soft-deleted).
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -708,6 +1029,8 @@ Proposal: add at least one concrete VirtualMachine test template showing multi-d
 
 **Decision:**
 
+Accept proposal. Add more tests if necessary too
+
 ---
 
 ### O-48. `missing_snapshot` error response for multiple resources not specified
@@ -719,6 +1042,8 @@ The `missing_snapshot` 422 error example shows one resource. When multiple resou
 Proposal: add a note or multi-resource example: "When multiple resources have missing data, `details` is a list of objects, each with `resource_type`, `resource_id`, and `missing_dates`."
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -734,6 +1059,8 @@ Proposal: specify `CharField(max_length=50, choices=Provisioner.choices)` with a
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-50. `StorageHotel.quota_unit` choices class and `max_length` not specified
@@ -745,6 +1072,8 @@ Same issue as O-49 for `quota_unit`. Values are `KB` and `KIB` but no `max_lengt
 Proposal: specify `CharField(max_length=10, choices=QuotaUnit.choices)` with a `QuotaUnit` TextChoices class.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -758,6 +1087,8 @@ Proposal: add a note in `TESTING_TEMPLATES.md` that tests should use realistic K
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-52. `cpu_count` Decimal coercion is an internal concern — API must stay integer
@@ -769,6 +1100,8 @@ Proposal: add a note in `TESTING_TEMPLATES.md` that tests should use realistic K
 Proposal: add a note: "`cpu_count` is serialized as a JSON integer in all API responses. Decimal coercion (`Decimal(str(cpu_count))`) happens only inside the billing calculation pipeline."
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -787,6 +1120,8 @@ Proposal: add a brief note that models should implement `__str__`. Suggested rep
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-54. Decimal values in JSONField metadata must be serialized as strings — no rule stated
@@ -799,6 +1134,8 @@ Proposal: add a global rule: "All Decimal values stored in JSONField metadata mu
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-55. `set-effective-to` endpoint overlap validation scope unclear
@@ -810,6 +1147,8 @@ The `set-effective-to` endpoint closes an open-ended price. The newly bounded ra
 Proposal: add: "The service must validate that `[row.effective_from, new_effective_to]` does not overlap any other row in the same `(price_list, resource_type, pricing_dimension)` group."
 
 **Decision:**
+
+Accept proposal
 
 ---
 
