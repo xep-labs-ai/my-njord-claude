@@ -215,6 +215,12 @@ Do not force a threshold-discount structure on resources that do not use one.
 
 # Shared Complex Scenario Templates
 
+## Important Note on Leap Years
+
+All examples assume non-leap year (365 days). Implementations must also be tested with leap year dates (e.g., 2024) using `/ 366`. See `TESTING.md` leap year requirements.
+
+---
+
 ## Template RT-18 — Missing middle days require autofill flag
 
 ### Intent
@@ -645,6 +651,37 @@ Expected behavior:
 
 ---
 
+## Quota Precision Note
+
+Tests should use realistic KB/KiB magnitude values (e.g., 1 TB ≈ 1,000,000,000 KB ≈ 976,562,500 KiB), not small integers, to catch precision issues in the Decimal conversion pipeline.
+
+---
+
+# VirtualMachine Test Templates
+
+## RT-VM-1: VirtualMachine multi-dimension billing (basic)
+
+Setup:
+- VirtualMachine: 8 CPU, 32768 MB RAM, 500 GB disk (one day)
+- Prices: cpu_count=300 NOK/unit/year, ram_gb=40 NOK/unit/year, disk_gb=2 NOK/unit/year
+- No discounts active
+
+Calculations:
+- cpu_count: 8 × (300 / 365) = 6.5753424657... NOK
+- ram_gb: (32768 / 1024) = 32 GB; 32 × (40 / 365) = 3.5068493150... NOK
+- disk_gb: 500 × (2 / 365) = 2.7397260273... NOK
+- daily_cost = 6.5753424657 + 3.5068493150 + 2.7397260273 = 12.8219178082... NOK (10 dp)
+- InvoiceLine.total_cost (1 day): sum of daily_cost = 12.8219178082
+- Invoice.total_amount: round(12.8219178082, 2, ROUND_HALF_UP) = 12.82 NOK
+
+Assertions:
+- normalized_usage: {"cpu_count": "8", "ram_gb": "32", "disk_gb": "500"}
+- dimension_costs: {"cpu_count": "6.5753424657", "ram_gb": "3.5068493150", "disk_gb": "2.7397260273"}
+- InvoiceLine.total_cost: "12.8219178082"
+- Invoice.total_amount: "12.82"
+
+---
+
 # Additional Shared Complex Tests Every Resource Should Usually Have
 
 The old StorageHotel scenarios are useful, but not sufficient alone.
@@ -739,7 +776,7 @@ Expected behavior:
 - invoice generation succeeds
 - days with real snapshots are billed normally
 - days with missing snapshots produce InvoiceDailyCost rows with daily_cost = 0
-- missing-day rows have autofilled = false (zero is a fallback, not a carry-forward)
+- missing-day rows have autofilled = true (zero is a fallback, but `autofilled = true` because the data did not come from a real ingested snapshot)
 - invoice has incomplete = true
 - Invoice.metadata contains missing_data_summary listing affected resources and dates
 - line total includes the zero-cost days

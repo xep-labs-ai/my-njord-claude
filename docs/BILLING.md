@@ -149,7 +149,7 @@ explicit_resources = [
 Invoice generation must fail if:
 
 - selected resources do not belong to the provided billing account
-- requested resource types are unknown or unsupported
+- requested resource types are unknown or unsupported (Valid resource types are defined in the Resource Type Registry (`001-billing-engine.prp.md`). Unknown `resource_type` values must be rejected with 400 Bad Request at both invoice generation and `ResourcePrice` creation.)
 - the selection is empty when explicit selection is required
 - the same resource is effectively selected more than once through conflicting selection inputs
 - the selection contract is ambiguous
@@ -179,6 +179,8 @@ Resources that are:
 must not contribute cost.
 
 Billability is resolved **per day** using the `active_from` and `active_to` fields from ResourceModel. The `status` field represents the resource's current lifecycle state but does not determine historical billability.
+
+The billing engine uses the `billing_objects` manager for all resource queries during invoice generation. The default manager is only used by CRUD API endpoints. For explicit resource ownership validation, `billing_objects` is also used so that soft-deleted (historically billable) resources can be explicitly selected.
 
 ---
 
@@ -480,7 +482,7 @@ Sum all `InvoiceDailyCost.daily_cost` values grouped by `InvoiceLine` → produc
 
 **Step 2: Aggregate InvoiceLine totals into Invoice total**
 
-Sum all `InvoiceLine.total_cost` values → produces `Invoice.total_amount`
+Sum all `InvoiceLine.total_cost` values, then round to 2 decimal places using `ROUND_HALF_UP` → produces `Invoice.total_amount`
 
 Invoice lines should usually aggregate totals per resource.
 
@@ -589,7 +591,7 @@ The rounding policy must be consistent across resource types.
 
 - The **entire invoice generation fails** (fatal error -- not a per-resource skip)
 - This means the entire invoice transaction is rolled back. No invoice is created, no InvoiceLines persist, no InvoiceDailyCost rows persist.
-- Example: if resource A has complete data and resource B has no prior snapshot, and `force=false`, the entire invoice fails -- resource A's valid data does not produce a partial invoice.
+- Example: if resource A has complete data and resource B has no prior snapshot, and `force=false`, the entire invoice generation fails -- resource A's valid data does not produce a partial invoice.
 
 ### `force=true` + `autofill_missing_days=true`
 

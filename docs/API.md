@@ -130,6 +130,8 @@ PageNumberPagination
 
 Project-level defaults are configured in DRF settings.
 
+Default page size: 50. Maximum page size: 200. These must be configured in `REST_FRAMEWORK` settings.
+
 ---
 
 ## Filtering Policy
