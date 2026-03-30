@@ -83,6 +83,18 @@ uv pip install -e ".[dev]"
 Claude should prefer using the dependency groups defined in `pyproject.toml`
 instead of installing packages individually.
 
+---
+
+## Django Project Location
+
+Django backend source code lives at:
+
+src/
+
+`manage.py` is located at `src/manage.py`. All Django commands should run as:
+
+uv run python src/manage.py <command>
+
 
 
 # Running Tests
@@ -150,6 +162,17 @@ Recommended commands:
 uv run pre-commit run --files path/to/changed_file.py
 uv run pre-commit run --all-files
 ```
+
+### Pre-commit hooks prerequisite
+
+Pre-commit hooks (`ruff`, `ruff-format`, `mypy`, `django-doctor`) require a valid Django project skeleton. `mypy` needs `DJANGO_SETTINGS_MODULE`; `django-doctor` needs Django to be importable. Until the Django skeleton in `src/` is in place, hooks will fail on any Python file.
+
+Required sequence:
+
+1. Create the Django project skeleton (`src/config/`, `src/apps/`, `src/manage.py`)
+2. Set `DJANGO_SETTINGS_MODULE=config.settings.dev` in the environment
+3. Verify: `uv run python src/manage.py check`
+4. Then verify: `pre-commit run --all-files`
 
 ### django-doctor
 

@@ -564,7 +564,9 @@ The rounding policy must be consistent across resource types.
 
 ## Currency Consistency
 
-`InvoiceLine.currency` and `InvoiceDailyCost.currency` must match `Invoice.currency`. This is a service-layer invariant that must be maintained during invoice generation.
+`Invoice.currency` is set at generation start to `billing_account.price_list.currency` and frozen for the invoice's lifetime. In v1 this is always `"NOK"`. `InvoiceLine.currency` and `InvoiceDailyCost.currency` are propagated from `Invoice.currency` during generation. No per-price currency validation is needed: all ResourcePrices in a PriceList inherit their currency from `PriceList.currency` by construction.
+
+This is a service-layer invariant that must be maintained during invoice generation.
 
 **v1 currency constraint:** All pricing in v1 uses NOK. The billing engine must validate that all resolved `ResourcePrice` rows for an invoice use the same currency as `Invoice.currency`. A currency mismatch is a fatal billing error.
 

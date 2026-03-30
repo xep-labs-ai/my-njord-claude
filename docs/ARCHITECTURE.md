@@ -173,12 +173,18 @@ Serializers must not contain multi-step domain workflows.
 
 Use service modules for multi-step business operations.
 
-Examples:
+Billing service modules:
 
-- invoice generation
-- invoice finalization
-- usage ingestion
-- quota ingestion
+- `invoice_generation.py` — orchestrates the full generation workflow
+- `invoice_finalization.py` — assigns invoice number, sets status to finalized
+- `price_resolution.py` — resolves effective ResourcePrice for a given resource/day
+- `resource_selection.py` — resolves which resources to bill based on selection_scope
+- `daily_cost.py` — computes InvoiceDailyCost rows for each resource/day
+
+Ingest service modules:
+
+- `quota_ingestion.py` — processes inbound quota snapshots
+- `vm_usage_ingestion.py` — processes inbound VM usage snapshots
 
 Note: a dedicated `recalculate` endpoint is deferred to v2. In v1, draft invoice updates use `POST /generate` with `force=true`.
 
@@ -276,6 +282,102 @@ Reasons:
 - expected scale fits comfortably within a modular monolith
 
 The priority is clean internal boundaries, not early service separation.
+
+---
+
+## Project Structure
+
+```
+(repo root)
+├── docs/
+│   ├── PRP/                    ← source-of-truth PRPs
+│   ├── architecture/           ← detailed architectural rules (future)
+│   ├── api/                    ← detailed API contracts (future)
+│   └── decisions/              ← ADRs (future)
+├── src/                        ← Django backend root
+│   ├── config/
+│   │   ├── __init__.py
+│   │   ├── asgi.py
+│   │   ├── urls.py
+│   │   ├── wsgi.py
+│   │   └── settings/
+│   │       ├── __init__.py
+│   │       ├── base.py
+│   │       ├── dev.py
+│   │       ├── test.py
+│   │       └── prod.py
+│   ├── apps/
+│   │   ├── billing/
+│   │   │   ├── __init__.py
+│   │   │   ├── apps.py
+│   │   │   ├── admin.py
+│   │   │   ├── constants.py
+│   │   │   ├── models/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── billing_account.py
+│   │   │   │   ├── invoice.py
+│   │   │   │   ├── pricing.py
+│   │   │   │   └── resource.py
+│   │   │   ├── migrations/
+│   │   │   ├── selectors/
+│   │   │   ├── services/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── invoice_generation.py
+│   │   │   │   ├── invoice_finalization.py
+│   │   │   │   ├── price_resolution.py
+│   │   │   │   ├── resource_selection.py
+│   │   │   │   └── daily_cost.py
+│   │   │   ├── api/
+│   │   │   │   ├── serializers/
+│   │   │   │   ├── views/
+│   │   │   │   ├── urls.py
+│   │   │   │   └── filters.py
+│   │   │   └── tests/
+│   │   │       ├── factories.py
+│   │   │       └── conftest.py
+│   │   ├── ingest/
+│   │   │   ├── __init__.py
+│   │   │   ├── apps.py
+│   │   │   ├── services/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── quota_ingestion.py
+│   │   │   │   └── vm_usage_ingestion.py
+│   │   │   ├── api/
+│   │   │   └── tests/
+│   │   │       ├── factories.py
+│   │   │       └── conftest.py
+│   │   └── common/
+│   │       ├── __init__.py
+│   │       ├── models/
+│   │       ├── api/
+│   │       ├── pagination.py
+│   │       ├── exceptions.py
+│   │       └── utils/
+│   └── manage.py
+├── tests/
+│   ├── integration/
+│   └── factories/              ← promoted only when factories are reused across multiple apps
+├── scripts/
+├── .claude/                    ← Claude configuration repository (separate git repo)
+├── .env.example
+├── pyproject.toml
+├── docker-compose.yml
+└── Makefile
+```
+
+**Structure notes:**
+
+- `src/` is the Django backend root. `manage.py` lives at `src/manage.py`. Django commands run as `uv run python src/manage.py <cmd>`.
+- `apps/common/` holds shared base models (e.g., `TimestampedModel`, `CreatedAtModel`), pagination, exception handlers, and utilities used across apps.
+- `apps/users/` is NOT created in v1 (no authentication in v1).
+- Per-app `tests/factories.py` holds plain factory functions. Factory functions are promoted to `tests/factories/` (top-level) only when reused across multiple apps and duplication becomes meaningful.
+- `DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"` must be set in `config/settings/base.py`.
+
+---
+
+## Migration Order Rule
+
+Write all `apps/billing/` models first, run `makemigrations billing`. Then write `apps/ingest/` models and run `makemigrations ingest`. Do not run a combined `makemigrations` across both apps in a single call — the cross-app FK from ingest to billing must be resolved via string references.
 
 ---
 

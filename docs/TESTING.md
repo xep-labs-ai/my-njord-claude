@@ -449,6 +449,24 @@ No new resource type should be added without **complete billing tests**.
 
 # Test Data Strategy
 
+**Test factory strategy:** Use plain Python factory functions as the default. Do not add `factory_boy` unless a clear need emerges.
+
+Factory functions live in `src/apps/<app>/tests/factories.py`. Pytest fixtures live in `src/apps/<app>/tests/conftest.py`. Factory functions are promoted to `tests/factories/` (top-level) only when the same factory is reused across multiple apps and duplication becomes meaningful.
+
+Factory function style:
+```python
+def create_billing_account(**overrides): ...
+def create_storage_hotel(**overrides): ...
+def create_virtual_machine(**overrides): ...
+def create_resource_price(**overrides): ...
+def create_storage_hotel_daily_quota(**overrides): ...
+def create_virtual_machine_daily_usage(**overrides): ...
+```
+
+Pytest fixtures are used for shared setup, API clients, and reusable test environment objects — not as a replacement for explicit factory function calls in billing tests.
+
+In billing tests, values must be explicit: dates, quantities, thresholds, and prices should appear in the test body, not hidden inside factory defaults.
+
 Tests should use:
 
 - minimal fixtures
@@ -459,7 +477,7 @@ Avoid large global fixtures.
 
 Prefer:
 
-small resource factories  
+small resource factories
 explicit daily snapshot creation
 
 

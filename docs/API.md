@@ -120,6 +120,25 @@ Serializers may exist without being exposed as standalone endpoints.
 
 ---
 
+## REST_FRAMEWORK Settings
+
+Recommended `REST_FRAMEWORK` settings in `config/settings/base.py`:
+
+```python
+REST_FRAMEWORK = {
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 50,
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
+    "DEFAULT_AUTHENTICATION_CLASSES": [],
+    "COERCE_DECIMAL_TO_STRING": True,
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+```
+
+`COERCE_DECIMAL_TO_STRING = True` ensures `DecimalField` values are rendered as strings in JSON responses, preserving precision without custom encoder logic in serializers.
+
+---
+
 ## Pagination Policy
 
 All list endpoints must be paginated.
@@ -160,6 +179,8 @@ List responses use DRF pagination:
 }
 
 Do not introduce a custom response envelope.
+
+**FK serialization rule:** All foreign key references in API responses are serialized as the integer primary key of the related object. Nested object serialization is not used unless explicitly documented for a specific endpoint.
 
 ---
 
