@@ -3,6 +3,17 @@
 Architecture review round 17 — exhaustive audit after round 16.
 Edit each `**Decision:**` line with your answer.
 
+
+## CUSTOM NEW OWN CLAUDE.md CLARIFICATION
+
+Claude READ THIS BEFORE PROCEEDING:
+
+### PriceList
+
+- I think that the currency maybe should be placed at this level, since Invoice needs to have a currency field, but how to populate that currency has not been defined yet. Only a Default currency has been placed in Invoice.currency, but that is not ideal. If we place currency at PriceList level, then Invoice can get the currency from the BillingAccount's PriceList. This also allows for future flexibility if we want to support multiple currencies.
+- If PriceList.currency is added, then ResourcePrice should not have a currency field, since it would be redundant. The price per unit can be assumed to be in the currency of the PriceList it belongs to.
+- Claude architect must ask about this desigin choice and update the PRP and models accordingly.
+
 ---
 
 ## HIGH
@@ -23,6 +34,35 @@ Proposal: **(a)** with an explicit note — since resources are never hard-delet
 
 **Decision:**
 
+Following block is the answer:
+
+```
+Decision: Change ingestion event FKs to `on_delete=PROTECT`.
+
+Reasoning:
+
+- These ingestion events are part of the audit and billing evidence trail.
+- In a financial system, accidental hard-delete must fail loudly, not silently remove historical records.
+- The fact that resources are soft-deleted in normal v1 flows is not sufficient justification for `CASCADE`.
+- `on_delete` should provide a defensive safety boundary in case of admin error, scripts, shell usage, or future maintenance changes.
+
+Final approach:
+
+- `QuotaIngestionEvent.resource` → `on_delete=PROTECT`
+- `VirtualMachineUsageIngestionEvent.resource` → `on_delete=PROTECT`
+
+Documentation note:
+
+- Resources are soft-deleted in v1 and should not be hard-deleted in normal operation.
+- If a hard-delete is attempted for a resource that has ingestion history, it must be blocked.
+- Any future purge/retention workflow must be designed explicitly rather than relying on FK cascade behavior.
+
+Why not `CASCADE`:
+
+- `CASCADE` turns an accidental hard-delete into silent loss of ingestion history.
+- That is not acceptable for an auditable billing system.
+```
+
 ---
 
 ### O-2. Explicit resource ownership validation: which manager to use
@@ -41,6 +81,8 @@ Additionally, the spec does not distinguish between:
 Proposal: Specify that explicit resource ownership validation uses `billing_objects` (includes soft-deleted). A non-existent resource returns 400 with `resource_not_found`. A resource belonging to a different billing account returns 400 with `resource_wrong_billing_account`.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -66,6 +108,8 @@ Proposal: Specify that ALL 400 responses from the generate endpoint use the stru
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-4. Duplicate entry validation for `explicit_resources` and `resource_types` not specified
@@ -85,6 +129,8 @@ Proposal:
 
 **Decision:**
 
+Accept proposal.
+
 ---
 
 ## MEDIUM
@@ -100,6 +146,8 @@ An implementer might nest related objects in some responses without realizing th
 Proposal: Add a global rule to `API.md`: "All foreign key references in API responses are serialized as the integer primary key of the related object. Nested object serialization is not used unless explicitly documented for a specific endpoint."
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -120,6 +168,8 @@ Proposal: Add a note to the InvoiceDailyCost constraints section: "In Django, th
 
 **Decision:**
 
+Accept proposal.
+
 ---
 
 ## LOW
@@ -134,6 +184,8 @@ Proposal: No change needed. Add a comment confirming this is intentional: "`Pric
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-8. `InvoiceLine` uses `CreatedAtModel` — confirm as v1 design
@@ -146,6 +198,8 @@ Proposal: No change for v1. Add a note: "If v2 recalculation needs in-place line
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-9. `InvoiceLine` and `InvoiceDailyCost` `currency` fields — service-layer propagation confirmation
@@ -157,6 +211,8 @@ All three models (`Invoice`, `InvoiceLine`, `InvoiceDailyCost`) have a `currency
 Proposal: No change needed. Add a comment: "Currency consistency across `Invoice`, `InvoiceLine`, and `InvoiceDailyCost` is enforced by the generation service. The service must propagate `Invoice.currency` to all child rows."
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -172,6 +228,8 @@ Proposal: No specification change. Add a developer note: "If historical `quota_u
 
 **Decision:**
 
+Accept proposal. Document it.
+
 ---
 
 ### O-11. `BillingAccount` API has no endpoint to list resources belonging to the account
@@ -184,6 +242,8 @@ Proposal: This is acceptable for v1. No change needed. In v2, a cross-resource l
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-12. `InvoiceLine.resource_id` and `InvoiceDailyCost.resource_id` typed as `PositiveIntegerField` — confirm intentional
@@ -195,6 +255,8 @@ Both fields are `PositiveIntegerField`, which adds a `CHECK >= 0` constraint. Dj
 Proposal: No change. Confirm as intentional: "`resource_id` is `PositiveIntegerField` to prevent accidentally storing negative IDs. It cannot be a FK since multiple resource types share the same field."
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -217,6 +279,115 @@ The repository has `pyproject.toml` and pre-commit config but no Django project 
 Verify `uv run python manage.py check` passes before writing any model code.
 
 **Decision:**
+
+Accept proposal with the following block for clarifications:
+
+```
+- Claude must use architect to ask more questions about the project structure in the chat.
+- Note that some of these are not defined in the PRP but maybe are going to be implemented later on.
+
+I am accepting the proposal but all the django skeleton must live inside src/invoice-api/
+├── docs/
+│   ├── PRP/
+│   ├── architecture/ # detailed architectural rules and patterns to be added later on
+│   ├── api/ # detailed API contracts to be added later on
+│   └── decisions/ # decision records to be added later on
+├── frontend/
+│   ├── src/
+│   │   ├── app/
+│   │   ├── components/
+│   │   ├── features/
+│   │   ├── lib/
+│   │   ├── pages/
+│   │   ├── hooks/
+│   │   ├── types/
+│   │   ├── api/
+│   │   └── main.tsx
+│   ├── public/
+│   ├── package.json
+│   ├── tsconfig.json
+│   ├── vite.config.ts
+│   └── eslint.config.js
+├── src/ # Scope for v1 invoice API backend, what we are reviewing now.
+│   ├── config/
+│   │   ├── __init__.py
+│   │   ├── asgi.py
+│   │   ├── urls.py
+│   │   ├── wsgi.py
+│   │   └── settings/
+│   │       ├── __init__.py
+│   │       ├── base.py
+│   │       ├── dev.py
+│   │       ├── test.py
+│   │       └── prod.py
+│   ├── apps/
+│   │   ├── __init__.py
+│   │   ├── billing/
+│   │   │   ├── __init__.py
+│   │   │   ├── apps.py
+│   │   │   ├── admin.py
+│   │   │   ├── models/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── billing_account.py
+│   │   │   │   ├── invoice.py
+│   │   │   │   ├── pricing.py
+│   │   │   │   └── resource.py
+│   │   │   ├── migrations/
+│   │   │   ├── selectors/
+│   │   │   ├── services/
+│   │   │   ├── api/
+│   │   │   │   ├── serializers/
+│   │   │   │   ├── views/
+│   │   │   │   ├── urls.py
+│   │   │   │   └── filters.py
+│   │   │   ├── tests/
+│   │   │   └── constants.py
+│   │   ├── ingest/
+│   │   │   ├── __init__.py
+│   │   │   ├── apps.py
+│   │   │   ├── services/
+│   │   │   ├── api/
+│   │   │   └── tests/
+│   │   ├── common/
+│   │   │   ├── __init__.py
+│   │   │   ├── models/
+│   │   │   ├── api/
+│   │   │   ├── pagination.py
+│   │   │   ├── permissions.py
+│   │   │   ├── exceptions.py
+│   │   │   └── utils/
+│   │   └── users/
+│   │       ├── __init__.py
+│   │       ├── apps.py
+│   │       └── tests/
+│   └── manage.py
+├── tests/ # eventually for end to end and integration tests and others
+│   ├── integration/
+│   └── factories/
+├── scripts/
+│   ├── dev/
+│   ├── test/
+│   └── ci/
+├── .env.example
+├── pyproject.toml
+├── README.md
+├── docker-compose.yml
+└── Makefile
+
+Use a monorepo with:
+- `src/` for the Django backend
+- `frontend/` for a future React + TypeScript frontend
+- Django organized by domain apps under `src/apps/`
+- each app internally split into `models/`, `services/`, `selectors/`, `api/`, and `tests/`
+- a top-level `tests/` directory for integration and end-to-end coverage
+
+This gives the project:
+- clean separation of concerns
+- strong scalability for backend growth
+- an easy place for a future frontend
+- better maintainability than a flat Django layout
+- less coupling than embedding the frontend inside Django
+```
 
 ---
 
@@ -247,6 +418,8 @@ Recommendation: Write all `apps/billing/` models first, run `makemigrations bill
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### C-3. Test factory strategy: `factory_boy` vs plain functions vs pytest fixtures
@@ -265,6 +438,57 @@ Recommendation: Use plain factory functions in `conftest.py` per app's test dire
 
 **Decision:**
 
+Following block is the answer:
+
+```
+**Decision: Accepted, with one refinement**
+
+Use **plain Python factory functions** as the default strategy for test data creation in v1. Do **not** add `factory_boy` unless a clear need emerges later.
+
+This is the best fit for the project’s current testing philosophy:
+- billing tests must keep values explicit
+- dates, quantities, thresholds, and prices must be easy to see in the test body
+- daily snapshot creation should remain deliberate rather than hidden behind heavy abstraction
+- the project should avoid unnecessary dependencies in early stages
+
+`factory_boy` is useful in larger codebases with complex object graphs, but for this project it would add indirection without enough benefit. In a billing system, readability and precision are more important than highly abstract factory layers.
+
+Pytest fixtures should still be used, but mainly for:
+- shared setup
+- API clients
+- reusable environment/configuration
+- common baseline objects where that improves clarity
+
+They should not replace explicit creation of financially relevant test inputs.
+
+**Refinement:**  
+Factory helper functions should **not live primarily in `conftest.py`** unless they are truly fixture-like and meant for automatic pytest discovery. Instead, the cleaner pattern is:
+
+- `src/apps/<app>/tests/factories.py` for helper creation functions
+- `src/apps/<app>/tests/conftest.py` for pytest fixtures only
+- top-level `tests/conftest.py` for cross-app shared fixtures
+
+This keeps responsibilities clear:
+- `factories.py` = explicit object creation helpers
+- `conftest.py` = pytest fixture registration and shared test setup
+
+**Recommended v1 rule:**
+- use plain factory/helper functions for object creation
+- use pytest fixtures for setup and shared context
+- keep snapshots, pricing rows, and invoice inputs explicit in billing tests
+- defer `factory_boy` unless repetition becomes significant enough to justify it
+
+Example style:
+
+```python
+def create_billing_account(**overrides): ...
+def create_storage_hotel(**overrides): ...
+def create_virtual_machine(**overrides): ...
+def create_resource_price(**overrides): ...
+def create_storage_hotel_daily_quota(**overrides): ...
+def create_virtual_machine_daily_usage(**overrides): ...
+```
+
 ---
 
 ### C-4. Verify pre-commit hooks pass before writing any Python code
@@ -276,6 +500,34 @@ The `.pre-commit-config.yaml` runs `ruff`, `ruff-format`, `mypy`, and `django-do
 Recommendation: Create the project skeleton (C-1) and verify `pre-commit run --all-files` passes before writing model code.
 
 **Decision:**
+
+```
+Read: `CUSTOM NEW OWN CLAUDE.md CLARIFICATION` at the end of the file and this:
+
+### C-4. Verify pre-commit hooks pass before writing any Python code
+
+**Decision: Accepted**
+
+This is a necessary prerequisite to ensure the development environment is correctly configured before any implementation begins.
+
+The current pre-commit setup includes:
+- `ruff` / `ruff-format`
+- `mypy` (with Django + DRF stubs)
+- `django-doctor`
+
+Both `mypy` and `django-doctor` depend on a valid Django project:
+- `mypy` requires `DJANGO_SETTINGS_MODULE` to resolve Django settings and model typing
+- `django-doctor` requires Django to be importable and properly configured
+
+Therefore, pre-commit hooks will fail until the Django project skeleton (C-1) is in place.
+
+**Required sequence:**
+1. Implement Django project skeleton (C-1)
+2. Ensure settings module is correctly defined (e.g., `config.settings.dev`)
+3. Verify Django loads successfully:
+   ```bash
+   uv run python src/manage.py check
+```
 
 ---
 
@@ -303,6 +555,8 @@ apps/ingest/services/
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### C-6. `DEFAULT_AUTO_FIELD` setting
@@ -314,6 +568,8 @@ Django 5.2 defaults to `BigAutoField` for new projects. The PRPs say all PKs are
 Recommendation: Set `DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"` in `base.py`. This is the Django 5.2 convention and prevents future migration pain.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -340,4 +596,7 @@ Note: `COERCE_DECIMAL_TO_STRING = True` ensures `DecimalField` values in seriali
 
 **Decision:**
 
+Accept proposal
+
 ---
+
