@@ -3,6 +3,40 @@
 **Source:** Architect Agent exhaustive review, 2026-03-30
 **Scope:** New issues not identified in rounds 1–17
 
+
+## Own clarifications and suggestions
+
+Claude must use Architect to ask more about these new clarifications and suggestions:
+
+### Archictecture Project Structure clarifications
+
+- The `Project Structure` inside `.claude/docs/ARCHITECTURE.md` is an example of how the structure should be as the project grows, not an exact listing of all apps and files. Architect must review the Architecture naming and structure rules and suggest better naming if necessary.
+
+### Exceptions and Errors
+
+- Should exceptions be inside their own file like:
+
+```
+src/apps/
+├── billing/
+│   ├── services/
+│   ├── api/
+│   ├── exceptions.py
+│   └── ...
+├── ingest/
+│   ├── services/
+│   ├── api/
+│   ├── exceptions.py
+│   └── ...
+└── common/
+    ├── api/
+    │   └── exception_handlers.py
+    ├── exceptions.py
+    └── ...
+```
+
+If so it must be documented in the `.claude/docs/ARCHITECTURE.md`
+
 ---
 
 ## HIGH Severity
@@ -23,6 +57,8 @@ This directly contradicts the current PRP design. Rounds 14–17 explicitly remo
 **Proposal:** Replace the advisory lock sentence in BILLING.md with: "The billing engine uses a database uniqueness constraint and service-layer transactional checks with `select_for_update()` on matching draft rows to prevent duplicate generation. v1 does not use PostgreSQL advisory locks."
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -46,6 +82,8 @@ The `VirtualMachineDailyUsage` CASCADE means hard-deleting a VirtualMachine sile
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ## MEDIUM Severity
@@ -65,6 +103,8 @@ An implementer must choose one convention and will contradict the other section.
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-4. `missing_data_summary` absent from invoice detail response example
@@ -80,6 +120,8 @@ PRP 003 line 77 (generate response) includes `"missing_data_summary": null`. PRP
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-5. `common` app missing from PRP 000; base model location conflict
@@ -92,6 +134,10 @@ PRP 000 lists only `apps/billing/` and `apps/ingest/`. ARCHITECTURE.md includes 
 **Proposal:** Since `TimestampedModel` and `CreatedAtModel` are cross-app abstractions, place them in `apps/common/models/base.py`. Update ARCHITECTURE.md Model Organization accordingly. Add `apps/common/` to PRP 000's app listing. Remove `base.py` from the billing models list.
 
 **Decision:**
+
+Accept proposal, and in addition Claude must use the architect to document the following:
+
+- The apps in the project structure were just an example of how the structure is intended to be as the project grows, not an exact listing of all apps and files. Architect must review the Architecture naming and structure rules and suggest better naming if necessary.
 
 ---
 
@@ -108,6 +154,8 @@ PRP 005 line 266: `price_per_unit_year` must be non-negative (>= 0). PRP 005 lin
 
 **Decision:**
 
+Accept proposal, it can be zero
+
 ---
 
 ### O-7. REST_FRAMEWORK settings missing `MAX_PAGE_SIZE`; needs custom pagination class
@@ -121,6 +169,8 @@ API.md line 152 states the maximum page size is 200, but the `REST_FRAMEWORK` se
 
 **Decision:**
 
+Accept proposal.
+
 ---
 
 ### O-8. API.md `missing_snapshot` error `details` is object; PRP 003 requires list
@@ -133,6 +183,8 @@ API.md shows `details` as a single object for `missing_snapshot` errors. PRP 003
 **Proposal:** Update the `missing_snapshot` example in API.md to show `details` as a list, consistent with PRP 003.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -149,6 +201,8 @@ The check constraint `CHECK (status = 'draft' OR total_amount IS NOT NULL)` only
 
 **Decision:**
 
+Accept proposal.
+
 ---
 
 ## LOW Severity
@@ -164,6 +218,24 @@ The check constraint `CHECK (status = 'draft' OR total_amount IS NOT NULL)` only
 
 **Decision:**
 
+Following block is the answer:
+
+```
+Recommended decision:
+
+- KEEP the current `PROTECT` chain
+- ADD explicit documentation that this is intentional in v1
+- DO NOT treat this as a schema flaw
+
+Why:
+- consistent with no-DELETE v1 policy
+- preserves auditability and referential integrity
+- prevents destructive cleanup of financially relevant history
+- retirement / soft-delete is the intended lifecycle path
+
+So this is primarily a documentation clarification, not a model redesign issue.
+```
+
 ---
 
 ### O-11. `ResourcePrice.__str__` always shows open-ended dash regardless of `effective_to`
@@ -176,6 +248,8 @@ The `__str__` is `f"{self.resource_type}/{self.pricing_dimension} ({self.effecti
 **Proposal:** Consider `f"... ({self.effective_from} - {self.effective_to or ''})"` for admin/shell clarity.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -190,6 +264,8 @@ PRP 003 lists `GET /api/v1/invoices/{id}/daily-costs` as a v2 endpoint. There is
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-13. No ordering specification for InvoiceLines in API responses
@@ -202,6 +278,8 @@ Invoice detail/generate responses include `"lines": [...]` but no ordering is sp
 **Proposal:** Specify that InvoiceLines should be ordered by `(resource_type, resource_id)` for deterministic output.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -216,6 +294,8 @@ Invoice detail/generate responses include `"lines": [...]` but no ordering is sp
 
 **Decision:**
 
+Include it in all the examples, it is not intentionally excluded.
+
 ---
 
 ### O-15. TESTING.md and TESTING_TEMPLATES.md test file paths use `apps/` not `src/apps/`
@@ -228,6 +308,8 @@ TESTING.md shows `uv run pytest apps/billing/tests/test_invoice_generation.py`. 
 **Proposal:** Verify `pyproject.toml` configures pytest `testpaths` correctly. Update test path references in TESTING.md if needed.
 
 **Decision:**
+
+Accept proposal and ensure that all the things that are using the old structure are updated to reflect the new structure, including the test templates.
 
 ---
 
@@ -242,6 +324,22 @@ PRP 002 states `namespace` is optional at the abstract level (`blank=True, defau
 
 **Decision:**
 
+Following block is the answer:
+
+```
+Recommended decision:
+
+- ACCEPT the proposal
+- ADD a short implementation note
+- KEEP the current abstract/concrete design
+
+Why:
+- valid Django pattern
+- abstract base should stay flexible
+- concrete models can enforce stricter requirements
+- the only missing piece is explicit documentation about field redeclaration
+```
+
 ---
 
 ### O-17. Soft-delete endpoint error codes not in API.md error code table
@@ -254,6 +352,8 @@ PRP 004 defines soft-delete endpoints returning 400 and 409 for various conditio
 **Proposal:** Add soft-delete error codes to API.md (e.g., `soft_delete_precondition_failed` for 400, `already_soft_deleted` for 409).
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -268,6 +368,8 @@ The project structure tree shows `apps/common/` but omits `apps.py` and `__init_
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-19. PRP 002 does not specify which app owns `TimestampedModel` / `CreatedAtModel`
@@ -281,6 +383,8 @@ PRP 002 defines these abstract base models but does not specify their app locati
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-20. Finalize endpoint 409 response body example missing from PRP 003
@@ -293,6 +397,8 @@ PRP 003 documents the finalize endpoint returning 409 for "already finalized" bu
 **Proposal:** Add a brief 409 response body example to the finalize endpoint section.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -310,6 +416,8 @@ Recommended: PROTECT for all four.
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### C-2. Resolve base model location (O-5, O-19)
@@ -317,6 +425,8 @@ Recommended: PROTECT for all four.
 Decide whether `TimestampedModel` and `CreatedAtModel` live in `apps/common/models/base.py` or `apps/billing/models/base.py`. Update PRP 002, PRP 000, and ARCHITECTURE.md consistently.
 
 **Decision:**
+
+They live in `apps/common/models/base.py`
 
 ---
 
@@ -326,6 +436,8 @@ Decide between plural and singular for model sub-module filenames. Update both s
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### C-4. Remove stale advisory lock reference from BILLING.md (O-1)
@@ -333,6 +445,8 @@ Decide between plural and singular for model sub-module filenames. Update both s
 Fix before implementation begins to prevent an implementer from building the wrong concurrency strategy.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -342,6 +456,8 @@ Is a zero discount price (free-after-threshold) a valid business scenario? This 
 
 **Decision:**
 
+Claude Architect should recommend a better approach if necessary. Meanwhile zeor is acceptable.
+
 ---
 
 ### C-6. Implement custom pagination class for `max_page_size` (O-7)
@@ -349,6 +465,8 @@ Is a zero discount price (free-after-threshold) a valid business scenario? This 
 `apps/common/pagination.py` needs a custom `PageNumberPagination` subclass with `max_page_size = 200`. Document before the first list endpoint is implemented.
 
 **Decision:**
+
+Accept proposal, and ensure that if pagination was proposed to be present in another places, they should also be updated to use the new pagination class.
 
 ---
 
@@ -358,6 +476,8 @@ With the `src/` monorepo structure, verify that `pyproject.toml` configures pyte
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### C-8. Decide on InvoiceLine ordering in API responses (O-13)
@@ -365,6 +485,8 @@ With the `src/` monorepo structure, verify that `pyproject.toml` configures pyte
 Specify a deterministic ordering for InvoiceLine objects in detail/generate responses.
 
 **Decision:**
+
+Claude architect should propose a suggestion and document it afterwards.
 
 ---
 
@@ -374,6 +496,8 @@ Should `InvoiceLine.created_at` be included in API responses?
 
 **Decision:**
 
+Yes, include it in API responses and examples.
+
 ---
 
 ### C-10. Update API.md `missing_snapshot` error example to list format (O-8)
@@ -381,6 +505,8 @@ Should `InvoiceLine.created_at` be included in API responses?
 Fix the API.md drift to match the authoritative PRP 003 format before implementation.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
