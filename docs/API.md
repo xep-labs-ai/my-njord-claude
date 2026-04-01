@@ -126,8 +126,7 @@ Recommended `REST_FRAMEWORK` settings in `config/settings/base.py`:
 
 ```python
 REST_FRAMEWORK = {
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
-    "PAGE_SIZE": 50,
+    "DEFAULT_PAGINATION_CLASS": "apps.common.pagination.StandardResultsPagination",
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
     "DEFAULT_AUTHENTICATION_CLASSES": [],
     "COERCE_DECIMAL_TO_STRING": True,
@@ -136,6 +135,8 @@ REST_FRAMEWORK = {
 ```
 
 `COERCE_DECIMAL_TO_STRING = True` ensures `DecimalField` values are rendered as strings in JSON responses, preserving precision without custom encoder logic in serializers.
+
+**Custom pagination:** `apps/common/pagination.py` contains a `StandardResultsPagination` class (subclass of `PageNumberPagination`) with `page_size = 50` and `max_page_size = 200`. All list endpoints that use pagination should reference this custom class.
 
 ---
 
@@ -197,12 +198,16 @@ Example:
 {
   "code": "missing_snapshot",
   "message": "Invoice generation failed because one or more required billing snapshots were missing.",
-  "details": {
-    "resource_type": "storage_hotel",
-    "resource_id": 42,
-    "missing_dates": ["2026-01-16", "2026-01-17"]
-  }
+  "details": [
+    {
+      "resource_type": "storage_hotel",
+      "resource_id": 42,
+      "missing_dates": ["2026-01-16", "2026-01-17"]
+    }
+  ]
 }
+
+**Note:** `details` is always a list of affected resources, even when only one resource has missing data.
 
 ---
 
@@ -227,6 +232,8 @@ Use 400 for request validation. Use 422 for billing domain failures.
 | `duplicate_snapshot` | Snapshot ingestion | A snapshot for this resource and date already exists |
 | `price_row_already_closed` | ResourcePrice set-effective-to | Attempt to modify an already-closed price row |
 | `price_range_overlap` | ResourcePrice create | New price row has overlapping effective dates with an existing row |
+| `soft_delete_precondition_failed` | Resource soft-delete | Resource is not in RETIRED status or `active_to` is not set |
+| `already_soft_deleted` | Resource soft-delete | Resource is already soft-deleted |
 
 **Note:** ResourcePrice endpoints and the `set-effective-to` operation are fully documented in `005-pricing-api.prp.md`.
 

@@ -103,7 +103,7 @@ Most billing scenarios should be implemented as service tests.
 
 Canonical location:
 
-apps/<app>/tests/
+src/apps/<app>/tests/
 
 
 ---
@@ -122,7 +122,7 @@ API tests must **not re-implement billing assertions** already tested in service
 
 Canonical location:
 
-apps/<app>/tests/
+src/apps/<app>/tests/
 
 
 ---
@@ -140,7 +140,7 @@ They should remain minimal.
 
 Canonical location:
 
-apps/<app>/tests/
+src/apps/<app>/tests/
 
 
 ---
@@ -451,7 +451,7 @@ No new resource type should be added without **complete billing tests**.
 
 **Test factory strategy:** Use plain Python factory functions as the default. Do not add `factory_boy` unless a clear need emerges.
 
-Factory functions live in `src/apps/<app>/tests/factories.py`. Pytest fixtures live in `src/apps/<app>/tests/conftest.py`. Factory functions are promoted to `tests/factories/` (top-level) only when the same factory is reused across multiple apps and duplication becomes meaningful.
+Factory functions live in `src/src/apps/<app>/tests/factories.py`. Pytest fixtures live in `src/src/apps/<app>/tests/conftest.py`. Factory functions are promoted to `tests/factories/` (top-level) only when the same factory is reused across multiple apps and duplication becomes meaningful.
 
 Factory function style:
 ```python
@@ -501,7 +501,7 @@ Run the smallest relevant subset first.
 
 Example:
 
-uv run pytest apps/billing/tests/test_invoice_generation.py
+uv run pytest src/apps/billing/tests/test_invoice_generation.py
 
 
 Before committing:

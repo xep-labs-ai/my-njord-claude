@@ -126,13 +126,18 @@ Examples of resource types:
 
 Future resource types should extend the same architectural pattern rather than inventing a separate billing flow.
 
+**Implementation note — namespace field redeclaration:** The abstract `ResourceModel` defines `namespace` as `blank=True, default=""`. Each concrete resource model must redeclare it with `blank=False` to enforce the requirement at the concrete level. Django supports field redeclaration in concrete subclasses of abstract models.
+
 ---
 
 ## Model Organization
 
-All domain models live in `apps/billing/models/` as a Python package. Organize into sub-modules:
+Domain models are organized as follows:
 
-- `apps/billing/models/base.py` — TimestampedModel, CreatedAtModel
+Shared base models live in `apps/common/models/`:
+- `apps/common/models/base.py` — TimestampedModel, CreatedAtModel
+
+Billing domain models live in `apps/billing/models/` as a Python package:
 - `apps/billing/models/billing_accounts.py` — BillingAccountBase (abstract), BillingAccount (concrete UiO implementation)
 - `apps/billing/models/pricing.py` — PriceList, ResourcePrice
 - `apps/billing/models/resources.py` — ResourceModel (abstract), StorageHotel, VirtualMachine
@@ -268,6 +273,8 @@ The billing domain owns transition rules and immutability requirements.
 6. Preserve raw ingestion payloads when ingestion is external.
 7. Prefer new effective-dated records over mutating historical pricing state.
 
+**v1 PROTECT FK chain:** This system intentionally uses `on_delete=PROTECT` for foreign keys throughout the data model. No DELETE endpoints exist in v1. Retirement and soft-deletion are the intended lifecycle paths for resources and pricing. The PROTECT chain preserves auditability and referential integrity by preventing silent cascade-deletions of financially relevant data. This is by design.
+
 ---
 
 ## Why Not Microservices
@@ -286,6 +293,8 @@ The priority is clean internal boundaries, not early service separation.
 ---
 
 ## Project Structure
+
+The following structure shows conventions and patterns (where models go, where services go, where tests go), not a prescriptive listing of every file that must exist at project start. It describes the intended organization as the project grows.
 
 ```
 (repo root)
@@ -312,12 +321,15 @@ The priority is clean internal boundaries, not early service separation.
 │   │   │   ├── apps.py
 │   │   │   ├── admin.py
 │   │   │   ├── constants.py
+│   │   │   ├── exceptions.py
 │   │   │   ├── models/
 │   │   │   │   ├── __init__.py
-│   │   │   │   ├── billing_account.py
-│   │   │   │   ├── invoice.py
+│   │   │   │   ├── billing_accounts.py
+│   │   │   │   ├── invoices.py
 │   │   │   │   ├── pricing.py
-│   │   │   │   └── resource.py
+│   │   │   │   ├── resources.py
+│   │   │   │   ├── snapshots.py
+│   │   │   │   └── base.py
 │   │   │   ├── migrations/
 │   │   │   ├── selectors/
 │   │   │   ├── services/
@@ -338,6 +350,7 @@ The priority is clean internal boundaries, not early service separation.
 │   │   ├── ingest/
 │   │   │   ├── __init__.py
 │   │   │   ├── apps.py
+│   │   │   ├── exceptions.py
 │   │   │   ├── services/
 │   │   │   │   ├── __init__.py
 │   │   │   │   ├── quota_ingestion.py
@@ -348,8 +361,12 @@ The priority is clean internal boundaries, not early service separation.
 │   │   │       └── conftest.py
 │   │   └── common/
 │   │       ├── __init__.py
+│   │       ├── apps.py
 │   │       ├── models/
+│   │       │   ├── __init__.py
+│   │       │   └── base.py
 │   │       ├── api/
+│   │       │   └── exception_handlers.py
 │   │       ├── pagination.py
 │   │       ├── exceptions.py
 │   │       └── utils/
@@ -369,6 +386,8 @@ The priority is clean internal boundaries, not early service separation.
 
 - `src/` is the Django backend root. `manage.py` lives at `src/manage.py`. Django commands run as `uv run python src/manage.py <cmd>`.
 - `apps/common/` holds shared base models (e.g., `TimestampedModel`, `CreatedAtModel`), pagination, exception handlers, and utilities used across apps.
+- Domain-specific exceptions live in `{app}/exceptions.py` (e.g., `apps/billing/exceptions.py`, `apps/ingest/exceptions.py`).
+- The DRF custom exception handler (which produces the structured `{code, message, details}` format) lives in `apps/common/api/exception_handlers.py`.
 - `apps/users/` is NOT created in v1 (no authentication in v1).
 - Per-app `tests/factories.py` holds plain factory functions. Factory functions are promoted to `tests/factories/` (top-level) only when reused across multiple apps and duplication becomes meaningful.
 - `DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"` must be set in `config/settings/base.py`.

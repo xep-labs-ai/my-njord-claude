@@ -613,7 +613,7 @@ A matching finalized invoice must block regeneration entirely (finalized invoice
 
 A matching draft is replaced atomically when `force=true`.
 
-The billing engine uses a PostgreSQL advisory lock to prevent concurrent generation for the same invoice period. See `001-billing-engine.prp.md` for the locking strategy.
+The billing engine uses a database uniqueness constraint and service-layer transactional checks with `select_for_update()` on matching draft rows to prevent duplicate generation. v1 does not use PostgreSQL advisory locks.
 
 **v1 limitation — cross-scope double-billing risk:** v1 does not prevent the same resource from appearing in multiple invoices for the same period under different selection scopes. Operators must not generate invoices with overlapping resource selections for the same billing account and period. Finalization is the operational safeguard — do not finalize overlapping invoices.
 
