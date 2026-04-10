@@ -29,6 +29,8 @@ The `already_soft_deleted` code is correctly placed in the 409 table. But `soft_
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-2. `pyproject.toml` not updated for `src/` layout — pytest and package building will fail
@@ -74,6 +76,8 @@ addopts = "-v --tb=short --strict-markers"
 ```
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -133,6 +137,8 @@ There is no `models/` directory shown. An implementer reading only the project t
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-5. PRP 003 finalize response missing `missing_data_summary` in metadata
@@ -158,6 +164,8 @@ Since `missing_data_summary` is always present in all Invoice metadata (per PRP 
 **Proposal:** Add `"missing_data_summary": null` to the finalize response metadata example (as the finalize example shows a non-incomplete invoice).
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -201,6 +209,8 @@ Recommendation: Keep flat files as the default (matching API.md), since ARCHITEC
 
 **Decision:**
 
+Accept proposal 1
+
 ---
 
 ## LOW Severity
@@ -222,6 +232,8 @@ API.md defines `price_range_overlap` as the overlap code for **ResourcePrice cre
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-8. BILLING.md line 465 references archived clarification file
@@ -236,6 +248,8 @@ BILLING.md line 465 contains: "See `002-resource-models.prp.md` and review-clari
 **Proposal:** Remove the "review-clarifications-10 C-1" reference from BILLING.md line 465. The context is already covered by PRP 002.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -258,6 +272,8 @@ Document a convention: generic field-level validation errors use `validation_err
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### O-10. `billing/models/constants.py` vs `billing/resource_types.py` naming inconsistency
@@ -273,6 +289,8 @@ The two documents suggest different file names for the same module: `constants.p
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ## Pre-Implementation Checklist
@@ -283,6 +301,8 @@ The wrong HTTP status code (409 vs 400) will be implemented if this is not corre
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### C-2. Update `pyproject.toml` for `src/` layout before running any tests (O-2)
@@ -290,6 +310,8 @@ The wrong HTTP status code (409 vs 400) will be implemented if this is not corre
 No pytest test can pass without `pythonpath = ["src"]` and `where = ["src"]`.
 
 **Decision:**
+
+Accept proposal
 
 ---
 
@@ -300,6 +322,8 @@ No pytest test can pass without `pythonpath = ["src"]` and `where = ["src"]`.
 
 **Decision:**
 
+Accept proposal
+
 ---
 
 ### C-4. Decide on flat files vs. sub-packages for `api/` layout (O-6)
@@ -308,6 +332,8 @@ Must be resolved before writing the first API file, or different apps will use d
 
 **Decision:**
 
+Flat packages for now
+
 ---
 
 ### C-5. Decide on `resource_types.py` vs `constants.py` for the resource type module (O-10)
@@ -315,6 +341,8 @@ Must be resolved before writing the first API file, or different apps will use d
 Minor but must be consistent from the first file created.
 
 **Decision:**
+
+Choose `resource_types.py` for clarity
 
 ---
 
